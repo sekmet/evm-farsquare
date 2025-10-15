@@ -1,10 +1,10 @@
-# EVM FarSquare: Tokenized Property Trading Platform
+# FarSquare: Tokenized Property Trading Platform
 
 A comprehensive platform for buying, selling, and trading tokenized real estate assets on EVM networks, enhanced with AI-driven market intelligence and compliance frameworks. Built using principles for robust, scalable architecture.
 
 ## Overview
 
-EVM FarSquare implements a **holistic ecosystem** for Real World Asset (RWA) tokenization, combining:
+FarSquare implements a **holistic ecosystem** for Real World Asset (RWA) tokenization, combining:
 
 - **Permissioned Token Standards**: ERC-3643 compliant tokens with built-in compliance
 - **Hybrid Trading Engine**: Off-chain order matching with on-chain atomic settlement
