@@ -1,5 +1,9 @@
 # FarSquare: Tokenized Property Trading Platform
 
+<p align="center">
+<img width="372" height="372" alt="evm-farsquare" src="https://github.com/user-attachments/assets/27927762-c34e-42da-ad9a-cc04d55e4b89" />
+</p>
+
 A comprehensive platform for buying, selling, and trading tokenized real estate assets on EVM networks, enhanced with AI-driven market intelligence and compliance frameworks. Built using principles for robust, scalable architecture.
 
 ## Overview
