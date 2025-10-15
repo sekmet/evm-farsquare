@@ -1,6 +1,6 @@
 # EVM FarSquare: Tokenized Property Trading Platform
 
-A comprehensive platform for buying, selling, and trading tokenized real estate assets on EVM blockchain networks, enhanced with AI-driven market intelligence and compliance frameworks. Built using **System Thinking Level 2** methodology and **Test-Driven Development (TDD)** principles for robust, scalable architecture.
+A comprehensive platform for buying, selling, and trading tokenized real estate assets on EVM networks, enhanced with AI-driven market intelligence and compliance frameworks. Built using principles for robust, scalable architecture.
 
 ## Overview
 
