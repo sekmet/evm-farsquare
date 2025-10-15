@@ -1,0 +1,35 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Daily Volume per Token",
+      "targets": [
+        {
+          "query": "SELECT date_trunc('day', block_time) AS time, token_in AS metric, SUM(amount_in::numeric / 1e18) AS value FROM order_filled_events GROUP BY 1,2 ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Top Traded Tokens",
+      "targets": [
+        {
+          "query": "SELECT token_in AS token, COUNT(*) AS fills FROM order_filled_events GROUP BY token_in ORDER BY fills DESC LIMIT 50"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Large Deposits (top makers)",
+      "targets": [
+        {
+          "query": "SELECT maker, token, SUM(amount::numeric / 1e18) AS total FROM deposits GROUP BY maker, token ORDER BY total DESC LIMIT 50"
+        }
+      ]
+    }
+  ],
+  "title": "RE Trading Analytics"
+}

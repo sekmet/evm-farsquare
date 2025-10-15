@@ -1,0 +1,23 @@
+source:
+  type: hedera
+  rpc: ${HEDERA_RPC_URL}
+  start_block: earliest
+transform:
+  - type: event_filter
+    contracts:
+      - address: 0xYourRegulatedTokenAddress
+        abi_path: ./contracts/RegulatedToken.abi.json
+      - address: 0xYourComplianceRegistryAddress
+        abi_path: ./contracts/ComplianceRegistry.abi.json
+      - address: 0xOrderbookAddress
+        abi_path: ./contracts/OrderbookSettlement.abi.json
+  - type: decode_events
+  - type: enrich
+    external:
+      - name: property-data
+        url: https://api.property-data.example # replace with your provider
+sink:
+  - type: s3
+    uri: s3://your-bucket/hedera/events
+  - type: postgres
+    uri: ${POSTGRES_URI}

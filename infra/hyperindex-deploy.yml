@@ -1,0 +1,29 @@
+index:
+  name: hedera-re-events
+  chain: hedera
+  rpc: ${HEDERA_RPC_URL}
+  startBlock: 0
+  contracts:
+    - name: ComplianceRegistry
+      address: 0xYourComplianceRegistryAddress
+      abi: ./contracts/ComplianceRegistry.abi.json
+      events:
+        - Whitelisted
+        - Dewhitelisted
+        - AttestationSet
+    - name: RegulatedToken
+      address: 0xYourRegulatedTokenAddress
+      abi: ./contracts/RegulatedToken.abi.json
+      events:
+        - Transfer
+        - ComplianceRegistryUpdated
+    - name: Orderbook
+      address: 0xOrderbookAddress
+      abi: ./contracts/OrderbookSettlement.abi.json
+      events:
+        - Deposited
+        - Withdrawn
+        - OrderFilled
+output:
+  type: hosted
+  region: us-east-1
