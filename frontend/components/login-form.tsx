@@ -33,7 +33,7 @@ export function LoginForm({
 
   const handleLoginSuccess = () => {
     toast.success("Login successful!");
-    navigate(location.state?.from || "/");
+    navigate(location.state?.from || "/dashboard");
   };
 
   const handleLoginError = (error: string) => {
@@ -51,7 +51,7 @@ export function LoginForm({
 
   const handleSIWESuccess = () => {
     toast.success("Wallet connected successfully!");
-    navigate(location.state?.from || "/");
+    navigate(location.state?.from || "/dashboard");
   };
 
   const handleSIWEError = (error: string) => {

@@ -11,6 +11,7 @@ import Layout from "@/components/layout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import SignUp from "@/pages/SignUp";
+import Homepage from "@/pages/Homepage";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/" element={<Homepage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
@@ -47,7 +49,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </Layout>
   );

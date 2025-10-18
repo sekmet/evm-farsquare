@@ -34,7 +34,7 @@
     "**/*.ts",
     "**/*.tsx",
     "**/*.d.ts"
-  ],
+, "pages/Homepage.tsx.bkp"  ],
   "exclude": [
     "node_modules"
   ]
