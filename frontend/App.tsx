@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { redirect } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from 'wagmi'
+import { WalletProvider } from "@/contexts/wallet-context";
 import { I18nProvider } from "./contexts/I18nContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ActiveThemeProvider } from "@/contexts/active-theme";
@@ -12,6 +13,16 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import SignUp from "@/pages/SignUp";
 import Homepage from "@/pages/Homepage";
+import OnboardingStart from "@/pages/onboarding/Start";
+import OnboardingKYC from "@/pages/onboarding/KYC";
+import OnboardingQualification from "@/pages/onboarding/Qualification";
+import OnboardingIdentity from "@/pages/onboarding/Identity";
+import OnboardingESign from "@/pages/onboarding/ESign";
+import Marketplace from "@/pages/marketplace/Marketplace";
+import MarketplaceDetails from "@/pages/marketplace/MarketplaceDetails";
+import Properties from "@/pages/properties/Properties";
+import PropertyDetails from "@/pages/properties/PropertyDetails";
+import AIInsights from "@/pages/ai-insights/AIInsights";
 
 const queryClient = new QueryClient();
 
@@ -49,7 +60,19 @@ function AppRoutes() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/" element={<Dashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/onboarding/start" element={<OnboardingStart />} />
+        <Route path="/onboarding/start/:sessionId" element={<OnboardingStart />} />
+        <Route path="/onboarding/kyc/:sessionId" element={<OnboardingKYC />} />
+        <Route path="/onboarding/qualification/:sessionId" element={<OnboardingQualification />} />
+        <Route path="/onboarding/identity/:sessionId" element={<OnboardingIdentity />} />
+        <Route path="/onboarding/esign/:sessionId" element={<OnboardingESign />} />
+        <Route path="/marketplace" element={<Marketplace />} />
+        <Route path="/marketplace/:listingId" element={<MarketplaceDetails />} />
+        <Route path="/properties" element={<Properties />} />
+        <Route path="/properties/:propertyId" element={<PropertyDetails />} />
+        <Route path="/analytics" element={<AIInsights />} />
       </Routes>
     </Layout>
   );
@@ -59,6 +82,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={wagmiConfig}>
+        <WalletProvider>
         <I18nProvider>
           <AuthProvider>
             <ActiveThemeProvider storageKey="vite-ui-theme">
@@ -69,6 +93,7 @@ export default function App() {
             </ActiveThemeProvider>
           </AuthProvider>
         </I18nProvider>
+        </WalletProvider>
       </WagmiProvider>
     </QueryClientProvider>
   );
