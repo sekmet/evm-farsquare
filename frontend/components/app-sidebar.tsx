@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/contexts/AuthContext"
 import { useNavigate, Link } from "react-router-dom"
+import logo from '@/assets/logo-farsquare.png'
 
 const data = {
   user: {
@@ -180,8 +181,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <Link to="/">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">EVM Farsquare</span>
+                <img src={logo} alt="Logo Farsquare" className="!size-8" />
+                <span className="text-xl font-semibold">Farsquare</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

@@ -1,5 +1,5 @@
 import { createPublicClient, http } from 'viem'
-import { mainnet, hedera, base } from 'viem/chains'
+import { hardhat, anvil, sepolia, baseSepolia, optimismSepolia } from 'viem/chains'
 
 /**
  * Public Client Configuration
@@ -8,7 +8,7 @@ import { mainnet, hedera, base } from 'viem/chains'
  * This client supports multicall aggregation for improved performance.
  */
 export const publicClient = createPublicClient({
-  chain: mainnet,
+  chain: anvil,
   transport: http(),
   batch: {
     multicall: true,
@@ -16,11 +16,13 @@ export const publicClient = createPublicClient({
 })
 
 // Export supported chains for use throughout the application
-export const supportedChains = [mainnet, hedera, base] as const
+export const supportedChains = [hardhat, anvil, sepolia, baseSepolia, optimismSepolia] as const
 
 // Chain configurations for easy access
 export const chainConfigs = {
-  mainnet,
-  hedera,
-  base,
+  hardhat,
+  anvil,
+  sepolia,
+  baseSepolia,
+  optimismSepolia,
 } as const

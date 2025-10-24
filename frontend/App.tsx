@@ -63,15 +63,14 @@ function AppRoutes() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/onboarding/start" element={<OnboardingStart />} />
-        <Route path="/onboarding/start/:sessionId" element={<OnboardingStart />} />
         <Route path="/onboarding/kyc/:sessionId" element={<OnboardingKYC />} />
         <Route path="/onboarding/qualification/:sessionId" element={<OnboardingQualification />} />
         <Route path="/onboarding/identity/:sessionId" element={<OnboardingIdentity />} />
         <Route path="/onboarding/esign/:sessionId" element={<OnboardingESign />} />
         <Route path="/marketplace" element={<Marketplace />} />
-        <Route path="/marketplace/:listingId" element={<MarketplaceDetails />} />
+        <Route path="/marketplace/:id" element={<MarketplaceDetails />} />
         <Route path="/properties" element={<Properties />} />
-        <Route path="/properties/:propertyId" element={<PropertyDetails />} />
+        <Route path="/properties/:id" element={<PropertyDetails />} />
         <Route path="/analytics" element={<AIInsights />} />
       </Routes>
     </Layout>

@@ -1,5 +1,5 @@
 import { createConfig, http } from 'wagmi'
-import { mainnet, hedera, base } from 'wagmi/chains'
+import { hardhat, anvil, sepolia, baseSepolia, optimismSepolia } from 'wagmi/chains'
 import { injected, metaMask, coinbaseWallet } from 'wagmi/connectors'
 import logoBig from '@/assets/evm-farsquare.png'
 /**
@@ -10,7 +10,7 @@ import logoBig from '@/assets/evm-farsquare.png'
  */
 
 // Define the chains supported by the application
-export const supportedChains = [mainnet, hedera, base] as const
+export const supportedChains = [hardhat, anvil, sepolia, baseSepolia, optimismSepolia] as const
 
 // Create wagmi configuration
 export const wagmiConfig = createConfig({
@@ -19,14 +19,16 @@ export const wagmiConfig = createConfig({
     injected(),
     metaMask(),
     coinbaseWallet({
-      appName: 'EVM Farsquare',
+      appName: 'Farsquare',
       appLogoUrl: logoBig,
     }),
   ],
   transports: {
-    [mainnet.id]: http(),
-    [hedera.id]: http(),
-    [base.id]: http(),
+    [hardhat.id]: http(),
+    //[anvil.id]: http(),
+    [sepolia.id]: http(),
+    [baseSepolia.id]: http(),
+    [optimismSepolia.id]: http(),
   },
 })
 

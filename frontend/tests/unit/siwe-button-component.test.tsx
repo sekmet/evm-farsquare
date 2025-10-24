@@ -7,7 +7,7 @@ import { I18nProvider } from "@/contexts/I18nContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SIWEButton } from "@/components/auth/SIWEButton";
 import { WagmiProvider, createConfig, http } from 'wagmi';
-import { mainnet } from 'viem/chains';
+import { hardhat, anvil, sepolia, baseSepolia, optimismSepolia } from 'viem/chains';
 import { injected } from 'wagmi/connectors';
 
 // Mock the Better Auth client
@@ -39,12 +39,12 @@ const mockEthereum = {
 
 // Create Wagmi config for testing
 const config = createConfig({
-  chains: [mainnet],
+  chains: [anvil],
   connectors: [
     injected(),
   ],
   transports: {
-    [mainnet.id]: http(),
+    [anvil.id]: http(),
   },
 });
 
