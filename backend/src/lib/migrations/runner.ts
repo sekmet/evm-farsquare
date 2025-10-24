@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
 import { migrator } from './config';
 import { closeDatabaseConnections } from '../database';
+import { getDatabasePool } from '../database';
+import * as path from 'path';
+import { sql } from 'kysely';
 
 /**
  * Migration error types for better error classification
@@ -108,8 +111,85 @@ export async function rollbackMigration(): Promise<void> {
 }
 
 /**
- * Check migration status and validate migration state
+ * Run a specific migration by file path with enhanced error handling
  */
+export async function runSpecificMigration(migrationPath: string): Promise<void> {
+  console.log(`🔄 Running specific migration: ${migrationPath}`);
+
+  try {
+    // Extract migration name from path (e.g., "src/migrations/20250101000000_unified_schema.ts" -> "20250101000000_unified_schema")
+    const migrationName = extractMigrationName(migrationPath);
+    console.log(`📋 Migration name: ${migrationName}`);
+
+    // Check if migration is already executed
+    const migrations = await migrator.getMigrations();
+    const existingMigration = migrations.find(m => m.name === migrationName);
+
+    if (existingMigration?.executedAt) {
+      console.log(`ℹ️  Migration "${migrationName}" is already executed at ${existingMigration.executedAt.toISOString()}`);
+      return;
+    }
+
+    // Import the migration file dynamically and run it
+    const fullPath = path.resolve(process.cwd(), migrationPath);
+    console.log(`📂 Importing migration from: ${fullPath}`);
+
+    const migrationModule = await import(fullPath);
+
+    if (!migrationModule.up) {
+      throw new MigrationError(
+        `Migration file "${migrationPath}" does not export an 'up' function`,
+        MigrationErrorType.UNKNOWN_ERROR,
+        new Error('Invalid migration file structure')
+      );
+    }
+
+    // Get database instance
+    const db = getDatabasePool();
+
+    // Run the migration
+    console.log(`⚡ Executing migration "${migrationName}"...`);
+    await migrationModule.up(db);
+
+    // Record the migration as executed using raw SQL
+    await sql`INSERT INTO kysely_migration (name, timestamp) VALUES (${migrationName}, ${new Date().toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '')})`.execute(db);
+
+    console.log(`✅ Migration "${migrationName}" executed successfully`);
+
+  } catch (error) {
+    await handleMigrationFailure(error as Error);
+  } finally {
+    await closeDatabaseConnections();
+  }
+}
+
+/**
+ * Extract migration name from file path
+ */
+function extractMigrationName(migrationPath: string): string {
+  // Handle various path formats
+  const normalizedPath = migrationPath.replace(/\\/g, '/');
+
+  // Extract filename without extension
+  const fileName = normalizedPath.split('/').pop() || '';
+  const nameWithoutExt = fileName.replace(/\.ts$/, '').replace(/\.js$/, '');
+
+  // Validate migration name format (should start with timestamp)
+  if (!/^\d{14}_/.test(nameWithoutExt)) {
+    throw new MigrationError(
+      `Invalid migration file name: ${nameWithoutExt}. Expected format: YYYYMMDDHHMMSS_description`,
+      MigrationErrorType.UNKNOWN_ERROR,
+      new Error('Invalid migration name format'),
+      [
+        'Ensure migration file follows naming convention: YYYYMMDDHHMMSS_description.ts',
+        'Check that the file exists in the migrations directory'
+      ]
+    );
+  }
+
+  return nameWithoutExt;
+}
+
 export async function checkMigrationStatus(): Promise<void> {
   try {
     const migrations = await migrator.getMigrations();
@@ -322,6 +402,7 @@ async function showStatus(): Promise<void> {
  */
 export async function runMigrationCommand(): Promise<void> {
   const command = process.argv[2];
+  const argument = process.argv[3];
 
   try {
     switch (command) {
@@ -334,11 +415,20 @@ export async function runMigrationCommand(): Promise<void> {
       case 'status':
         await checkMigrationStatus();
         break;
+      case 'run':
+        if (!argument) {
+          console.error('❌ Migration file path is required for "run" command');
+          console.log('Usage: migrate run <migration-file-path>');
+          process.exit(1);
+        }
+        await runSpecificMigration(argument);
+        break;
       default:
-        console.log('Usage: migrate [up|down|status]');
-        console.log('  up     - Run all pending migrations');
-        console.log('  down   - Rollback the last executed migration');
-        console.log('  status - Show current migration status');
+        console.log('Usage: migrate [up|down|status|run <path>]');
+        console.log('  up           - Run all pending migrations');
+        console.log('  down         - Rollback the last executed migration');
+        console.log('  status       - Show current migration status');
+        console.log('  run <path>   - Run a specific migration by file path');
         process.exit(1);
     }
   } catch (error) {

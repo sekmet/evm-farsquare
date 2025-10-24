@@ -1,0 +1,75 @@
+services:
+  # TimescaleDB - PostgreSQL with time-series extension
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: evm-fqs-postgres
+    environment:
+      POSTGRES_DB: evm_fsq_db
+      POSTGRES_USER: evm_fsq_user
+      POSTGRES_PASSWORD: evm_fsq_password
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/migrations/sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evm_fsq_user -d evm_fsq_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fqs-network
+    restart: unless-stopped 
+    
+  # RabbitMQ - Message queue for event processing
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: evm-fqs-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: evm_fsq_user
+      RABBITMQ_DEFAULT_PASS: evm_fsq_password
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"   # AMQP protocol
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - fqs-network
+    restart: unless-stopped 
+
+  # Redis - Caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: evm-fqs-redis
+    command: redis-server --requirepass evm_fsq_password --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fqs-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  fqs-network:
+    driver: bridge
