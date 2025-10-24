@@ -297,7 +297,7 @@ const Homepage = () => {
               </Button>
               </Link>
             </div>
-            <form className="mt-10 flex w-full max-w-3xl items-center rounded-full bg-white/95 p-2 shadow-xl">
+            {/*<form className="mt-10 flex w-full max-w-3xl items-center rounded-full bg-white/95 p-2 shadow-xl">
               <div className="flex w-full items-center gap-2 px-4">
                 <MapPin className="h-5 w-5 text-primary" />
                 <Input
@@ -309,7 +309,7 @@ const Homepage = () => {
               <Button type="submit" className="h-12 w-12 rounded-full bg-primary hover:bg-primary/90">
                 <KeyRound className="h-5 w-5" />
               </Button>
-            </form>
+            </form>*/}
           </div>
         </section>
 

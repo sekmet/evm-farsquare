@@ -128,7 +128,7 @@ export const PropertyCard = ({
   const ethPrice = displayTokenPrice ? displayTokenPrice * 0.000021 : 0;
 
   return (
-    <Card className="overflow-hidden bg-card border-border hover:border-primary/50 transition-all duration-300 group">
+    <div className="relative w-full overflow-hidden">
       <Link to={`/properties/${id}`}>
         <div className="relative overflow-hidden aspect-[4/3]">
           <img
@@ -236,6 +236,6 @@ export const PropertyCard = ({
           )}
         </div>
       </Link>
-    </Card>
+    </div>
   );
 };

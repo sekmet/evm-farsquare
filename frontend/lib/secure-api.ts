@@ -156,7 +156,7 @@ export const createSecureApiClient = (baseUrl?: string): SecureApiClient => {
 
 // Environment-based client factory
 export const createSecureApiClientFromEnv = (): SecureApiClient => {
-  const baseUrl = import.meta.env.DEV
+  const baseUrl = import.meta.env.VITE_DEV
     ? "http://localhost:3000"
     : "https://api.farsquare.xyz"; // Production URL would go here
 

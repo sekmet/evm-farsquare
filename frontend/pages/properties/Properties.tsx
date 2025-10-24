@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Search, SlidersHorizontal, RefreshCw, AlertCircle, TrendingUp, TrendingDown, MapPin, DollarSign, Home, Building } from "lucide-react";
+import { Search, SlidersHorizontal, RefreshCw, AlertCircle, TrendingUp, Coins, TrendingDown, MapPin, DollarSign, Home, Building } from "lucide-react";
 
 // Types for API data
 interface Property {
@@ -202,6 +202,9 @@ const Properties = () => {
 
     fetchProperties();
   }, []);
+
+
+  const isEligible = true;
 
   if (isLoading && properties.length === 0) {
     return (
@@ -442,12 +445,19 @@ const Properties = () => {
                 : "space-y-4"
             }>
               {filteredProperties.map((property) => (
-                <Card key={property.id} className={viewMode === "list" ? "overflow-hidden" : ""}>
+                <Card key={property.id} className={viewMode === "list" ? "overflow-hidden" : "group overflow-hidden border border-border/60 bg-white shadow-sm gap-0 p-0"}>
                   {viewMode === "list" ? (
                     <CardContent className="p-0">
                       <div className="flex">
-                        <div className="w-48 h-32 bg-muted rounded-l-lg flex-shrink-0"></div>
-                        <div className="flex-1 p-6">
+                        <div className="pl-6 w-56 h-32 flex">
+                        <img
+                          src={property.images[0]}
+                          alt={property.name}
+                          className="w-56 h-32 rounded-sm shrink-0 object-cover"
+                          loading="lazy"
+                        />
+                        </div>
+                        <div className="flex-1 pr-6 pl-8">
                           <div className="flex items-start justify-between mb-2">
                             <div>
                               <h3 className="text-lg font-semibold">{property.name}</h3>
@@ -475,11 +485,12 @@ const Properties = () => {
                                 {property.available_tokens.toLocaleString()} of {property.total_tokens.toLocaleString()} tokens available
                               </div>
                             </div>
-                            <Button size="sm" asChild>
-                              <Link to={`/properties/${property.id}`}>
-                                Invest Now
-                              </Link>
-                            </Button>
+                          <Button size="sm" variant="outline" className="group/btn" asChild>
+                          <Link to={`/properties/${property.id}`}>
+                            <Coins className="w-4 h-4 group-hover/btn:text-primary transition-colors" />
+                            {isEligible ? 'Invest Now' : 'View Details'}
+                          </Link>
+                          </Button>
                           </div>
                         </div>
                       </div>
