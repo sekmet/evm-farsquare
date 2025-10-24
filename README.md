@@ -92,13 +92,15 @@ Leveraging the **T-REX (Token for Regulated EXchanges)** standard for permission
 
 ### Blockchain Infrastructure
 
-- **Hedera**: Primary deployment network with 10,000+ TPS, 3s finality, USD-priced fees
+- **Base Sepolia**: Primary deployment network, low fees
+- **Ethereum Sepolia**: Secondary deployment network
+- **Optimism Sepolia**: Secondary deployment network
 - **EVM Compatibility**: Full Ethereum Virtual Machine support for seamless integration
 
 ### Core Components
 
 - **Contracts**: Solidity smart contracts with ERC-3643 compliance registry and periphery adapters
-- **Backend**: APIs, **Lit Protocol** integration for programmable signing, off-chain orderbook matching, and automated keepers
+- **Backend**: APIs, off-chain orderbook matching, and automated keepers
 - **Infrastructure**: **Envio** for high-performance indexing (HyperIndex) and ultra-fast data APIs (HyperSync)
 - **AI Subsystem**: Data ingestion pipelines with machine learning models for forecasting and recommendations
 - **Frontend**: React dApp with embeddable widgets and real-time market data
@@ -106,13 +108,12 @@ Leveraging the **T-REX (Token for Regulated EXchanges)** standard for permission
 ### Development & Testing Tools
 
 - **Hardhat 3**: Advanced development environment with Solidity tests, Rust performance components, and multichain support
-- **State Channels**: **Yellow Network ERC-7824** for off-chain scaling and cross-chain operations
 - **Stablecoin Integration**: **PayPal PYUSD** for fiat-backed stable value transactions
 
 ### Payment & Settlement
 
-- **Multi-Currency Support**: Native HBAR, PYUSD, and cross-chain asset settlements
-- **Automated Transactions**: Lit Protocol enables trustless, user-controlled automation
+- **Multi-Currency Support**: Native ETH, PYUSD, OP and cross-chain asset settlements
+- **Automated Transactions**: Enables trustless, user-controlled automation
 
 ### Development Approach
 
@@ -140,9 +141,9 @@ Following strict TDD principles:
 
 ## Deployment Strategy
 
-### Primary Network: Hedera
+### Primary Network: Base
 
-**Hedera** serves as our initial deployment target, providing unmatched performance characteristics for tokenized real estate trading:
+**Base** serves as our initial deployment target, providing high performance characteristics for tokenized real estate trading:
 
 - **10,000+ TPS**: Enables high-frequency trading and real-time settlement
 - **3-Second Finality**: Critical for atomic transaction guarantees in hybrid marketplace
@@ -150,7 +151,7 @@ Following strict TDD principles:
 - **aBFT Security**: Highest grade security for financial applications
 - **Council Governance**: Transparent, institutional-grade decision-making
 
-**Why Hedera First:**
+**Why Base First:**
 
 - Superior performance for AI-driven trading algorithms
 - Lower operational costs for high-volume applications
@@ -159,27 +160,24 @@ Following strict TDD principles:
 
 ### Secondary Networks
 
-- **Polygon zkEVM**: Cost-efficient scaling for high-volume operations
-- **Ethereum Mainnet**: Maximum security and established liquidity for production
-- **Development**: Hedera Testnet for comprehensive testing
+- **Ethereum Sepolia**: Maximum security and established liquidity for production
+- **Optimism Sepolia**: Cost-efficient scaling for high-volume operations
+- **Development**: Ethereum Sepolia, Base Sepolia and Optimism Sepolia for comprehensive testing
 
 ### Multi-Chain Integration
 
-Leveraging **Yellow Network's ERC-7824** state channels for cross-chain operations:
-
 - **Off-chain Execution**: Real-time trading across multiple networks
-- **On-chain Settlement**: Final settlement on Hedera for guaranteed finality
+- **On-chain Settlement**: Final settlement on Base for guaranteed finality
 - **Chain Agnostic**: Seamless integration with any EVM-compatible chain
 
 ## Getting Started
 
 ### Prerequisites
 
-- **Node.js 18+**: For JavaScript/TypeScript development
-- **Hardhat 3**: Advanced development environment with multichain support
-- **Foundry**: For Solidity testing and deployment (recommended for Hedera)
+- **Node.js 20+**: For JavaScript/TypeScript development
+- **Hardhat 3**: Advanced development environment for Solidity testing and deployment with multichain support
 - **Python 3.9+**: For AI/ML components and data processing
-- **Hedera Account**: For mainnet/testnet deployment
+- **EVM networks wallets**: For mainnet/testnet deployment
 
 ### Installation
 
@@ -201,26 +199,24 @@ npx envio init
 
 # Setup environment
 cp .env.example .env
-# Configure HEDERA_RPC_URL, HEDERA_ACCOUNT_ID, and other variables
+# Configure BASE_SEPOLIA_RPC_URL, BASE_SEPOLIA_PRIVATE_KEY, and other variables
 ```
 
 ### Development Workflow
 
 ```bash
 # Run comprehensive tests (TDD approach)
-npm test
+bun test
 
-# Deploy to Hedera testnet (primary development target)
-npx hardhat deploy --network hedera-testnet
+# Deploy to Base Sepolia (primary development target)
+bunx hardhat deploy --network base-sepolia
 
 # Use Envio for real-time indexing
-npx envio dev
+cd infra
+bun run dev
 
-# Deploy with state channels (Yellow Network integration)
-npx hardhat deploy-yellow-channels --network hedera-mainnet
-
-# Start local development environment with Lit Protocol
-npm run dev
+# Start local development environment
+bun run dev
 ```
 
 ## Compliance & Security
@@ -238,21 +234,15 @@ This platform builds upon extensive research into:
 - **Real-world RWA tokenization platforms** (RealT, Blocksquare, Centrifuge)
 - **AI/ML integration** for financial market analysis
 - **Systems thinking approaches** for complex platform design
-- **Hedera blockchain** for high-performance deployment
-- **State channel protocols** (ERC-7824) for off-chain scaling
-- **Programmable signing** (Lit Protocol) for automated transactions
+- **Multi-chain networks** for ERC3643 and UniswapV3 Orderbook/Marketplace contracts deployment
 
 **Key Resources:**
 
 - [ERC-3643 Specification](https://github.com/TokenySolutions/EIP3643)
 - [Tokeny T-REX Implementation](https://tokeny.com/erc3643/)
-- [Hedera Documentation](https://docs.hedera.com/)
 - [Envio High-Performance Indexing](https://envio.dev/)
-- [Lit Protocol Programmable Signing](https://litprotocol.com/)
 - [PayPal PYUSD](https://pyusd.com/)
 - [Hardhat 3 Development Environment](https://hardhat.org/)
-- [Yellow Network ERC-7824](https://erc7824.org/)
-- [Research Documentation](./.windsurf/docs/)
 
 ## License
 
@@ -260,4 +250,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Note**: This is a prototype scaffold. All components require comprehensive testing, security audits, and legal review before production deployment with real assets.
+**Note**: All components require comprehensive testing, security audits, and legal review before production deployment with real assets.
