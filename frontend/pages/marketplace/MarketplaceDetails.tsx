@@ -241,7 +241,7 @@ const MarketplaceDetails = () => {
       <div className="w-full">
         <div className="container mx-auto px-6">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-6">
             <Button variant="ghost" size="sm" asChild className="mb-4">
               <Link to="/marketplace" className="flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" />

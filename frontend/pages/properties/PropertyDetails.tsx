@@ -214,12 +214,12 @@ const PropertyDetails = () => {
 
   // Render main content
   return (
-    <div className="flex flex-col items-center justify-center p-6 md:p-6">
+    <div className="flex flex-col items-center justify-center">
       <div className="w-full">
-      <main className="pb-16">
+      <main className="pb-16 pt-6">
         <div className="container mx-auto px-6">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-6">
             <Button variant="ghost" size="sm" asChild className="mb-4">
               <Link to="/properties">
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -637,7 +637,9 @@ const PropertyDetails = () => {
                     </div>
 
                     {/* Investment Calculator */}
-                    <InvestmentCalculator property={{
+                    <InvestmentCalculator
+                    userId={state.address || ''}
+                    property={{
                       id: property.id,
                       name: property.name,
                       tokenPrice: property.token_price,

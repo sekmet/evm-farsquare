@@ -5,12 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, Wifi, WifiOff, TrendingUp, TrendingDown } from 'lucide-react';
+import { AlertCircle, Wifi, WifiOff, Wallet, TrendingUp, TrendingDown } from 'lucide-react';
 import { useRealTimePrices } from '@/hooks/use-realtime-prices';
 import { createPublicClient, http, parseAbi, type Address } from 'viem';
 import { hardhat, anvil, sepolia, baseSepolia, optimismSepolia } from 'viem/chains';
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { fetchETHPrice, fetchOPTIMISMPrice } from "@/data/asset-prices";
+import { useWallet } from '@/contexts/wallet-context';
 
 interface InvestmentCalculatorProps {
   property: {
@@ -22,6 +23,8 @@ interface InvestmentCalculatorProps {
     riskLevel: 'low' | 'medium' | 'high';
     contract_address?: string; // EVM contract address for ERC-3643 compliance
   };
+  userId?: string;
+  className?: string;
   onCalculate?: (results: InvestmentResults) => void;
 }
 
@@ -179,13 +182,17 @@ async function calculateComplianceScore(contractAddress: Address, userAddress?: 
   }
 }
 
-export function InvestmentCalculator({ property, onCalculate }: InvestmentCalculatorProps) {
+export function InvestmentCalculator({ property, userId, className, onCalculate }: InvestmentCalculatorProps) {
   const [investmentAmount, setInvestmentAmount] = useState<number>(property?.minimumInvestment || 1000);
   const [holdPeriod, setHoldPeriod] = useState<number>(1);
   const [contractValidated, setContractValidated] = useState<boolean>(false);
   const [erc3643Compliant, setErc3643Compliant] = useState<boolean>(false);
   const [complianceScore, setComplianceScore] = useState<number>(85);
+  const { state } = useWallet();
   const { isConnected, lastUpdate } = useRealTimePrices();
+  
+  //const userAddress = state.address;
+  const isWalletConnected = state.isConnected; // Simple check for wallet connection
 
   // Fetch ETH price for USD conversion
   const { data: ethPrice, isLoading: isPriceLoading } = useQuery({
@@ -291,12 +298,35 @@ export function InvestmentCalculator({ property, onCalculate }: InvestmentCalcul
     setHoldPeriod(parseInt(value) || 1);
   };
 
+  if (!isWalletConnected && !userId) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            Investment Calculator
+          </CardTitle>
+          <CardDescription>
+            Connect your EVM wallet to check investment calculator
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert>
+            <Wallet className="h-4 w-4" />
+            <AlertDescription>
+              Please connect your EVM wallet (MetaMask, Coinbase Wallet, etc.) to view investment calculator.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           Investment Calculator
-          <Badge variant={isConnected ? "default" : "destructive"} className="text-xs">
+          <Badge variant={isConnected ? "success" : "destructive"} className="text-xs">
             {isConnected ? <Wifi className="w-3 h-3 mr-1" /> : <WifiOff className="w-3 h-3 mr-1" />}
             {isConnected ? 'Live' : 'Offline'}
           </Badge>

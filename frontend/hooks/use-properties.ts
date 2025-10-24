@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { createPublicClient, http, parseAbi, type Address } from 'viem';
-import { hardhat, anvil, sepolia, baseSepolia, optimismSepolia } from 'viem/chains';
+import { type Address } from 'viem';
+import { validateERC3643Token, getERC3643TokenInfo } from '@/lib/evm-client-api';
 
 export interface PropertyFilters {
   search: string;
@@ -46,112 +46,7 @@ export interface PropertiesStats {
   averageFundingProgress: number;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-
-// ============================================================================
-// EVM CLIENT CONFIGURATION - Viem/Wagmi Patterns
-// ============================================================================
-
-// Create public client for read-only operations (ERC-3643 compliance)
-const publicClient = createPublicClient({
-  chain: anvil, // Using Base network for production EVM interactions
-  transport: http(import.meta.env.VITE_EVM_RPC_URL || 'http://127.0.0.1:8545'),
-});
-
-// Supported chains for multi-chain deployment
-export const supportedChains = [hardhat, anvil, sepolia, baseSepolia, optimismSepolia] as const;
-
-// ============================================================================
-// ERC-3643 CONTRACT INTERACTION FUNCTIONS - Viem/Wagmi Patterns
-// ============================================================================
-
-/**
- * Check if an ERC-3643 token contract is deployed and valid
- * Uses TREXToken.onchainID() and identityRegistry() methods
- */
-async function validateERC3643Token(contractAddress: Address): Promise<boolean> {
-  try {
-    // ERC-3643 Level 3 ABI for validation - parsed using parseAbi
-    const erc3643Abi = parseAbi([
-      'function onchainID() external view returns (address)',
-      'function identityRegistry() external view returns (address)',
-      'function compliance() external view returns (address)',
-      'function name() external view returns (string)',
-      'function symbol() external view returns (string)',
-      'function totalSupply() external view returns (uint256)'
-    ]);
-
-    // Check if contract responds to ERC-3643 methods
-    const [onchainID, identityRegistry] = await Promise.all([
-      publicClient.readContract({
-        address: contractAddress,
-        abi: erc3643Abi,
-        functionName: 'onchainID'
-      }),
-      publicClient.readContract({
-        address: contractAddress,
-        abi: erc3643Abi,
-        functionName: 'identityRegistry'
-      })
-    ]);
-
-    // Validate that addresses are not zero
-    return onchainID !== '0x0000000000000000000000000000000000000000' &&
-           identityRegistry !== '0x0000000000000000000000000000000000000000';
-  } catch (error) {
-    console.error(`Failed to validate ERC-3643 token ${contractAddress}:`, error);
-    return false;
-  }
-}
-
-/**
- * Get ERC-3643 token information using contract read methods
- */
-async function getERC3643TokenInfo(contractAddress: Address) {
-  try {
-    // ERC-3643 token information ABI - parsed using parseAbi
-    const tokenInfoAbi = parseAbi([
-      'function name() external view returns (string)',
-      'function symbol() external view returns (string)',
-      'function totalSupply() external view returns (uint256)',
-      'function decimals() external view returns (uint8)'
-    ]);
-
-    const [name, symbol, totalSupply, decimals] = await Promise.all([
-      publicClient.readContract({
-        address: contractAddress,
-        abi: tokenInfoAbi,
-        functionName: 'name'
-      }),
-      publicClient.readContract({
-        address: contractAddress,
-        abi: tokenInfoAbi,
-        functionName: 'symbol'
-      }),
-      publicClient.readContract({
-        address: contractAddress,
-        abi: tokenInfoAbi,
-        functionName: 'totalSupply'
-      }),
-      publicClient.readContract({
-        address: contractAddress,
-        abi: tokenInfoAbi,
-        functionName: 'decimals'
-      })
-    ]);
-
-    return {
-      name: name as string,
-      symbol: symbol as string,
-      totalSupply: (totalSupply as bigint).toString(),
-      decimals: decimals as number,
-      contractAddress
-    };
-  } catch (error) {
-    console.error(`Failed to get token info for ${contractAddress}:`, error);
-    return null;
-  }
-}
+const API_BASE_URL = import.meta.env.VITE_BASE_API_URL || 'http://localhost:3000';
 
 // Debounce hook for search input
 function useDebounce<T>(value: T, delay: number): T {

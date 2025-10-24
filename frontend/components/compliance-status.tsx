@@ -327,10 +327,7 @@ function getStatusColor(status: string) {
 
 export function ComplianceStatus({ propertyId, userId, className }: ComplianceStatusProps) {
   const { state } = useWallet();
-  // For EVM integration, we'll need to get the user's wallet address
-  // This would typically come from a wallet context or connection hook
-  // For now, we'll use a placeholder - in production this would be connected wallet
-  const userAddress = state.address; // Placeholder for demo
+  const userAddress = state.address;
   const isWalletConnected = state.isConnected; // Simple check for wallet connection
 
   const { data: complianceData, isLoading, error } = useQuery({

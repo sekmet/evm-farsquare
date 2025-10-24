@@ -192,9 +192,9 @@ const Marketplace = () => {
 
   if (isLoading && !lastUpdate) {
     return (
-    <div className="flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
+    <div className="flex min-h-svh flex-col items-center justify-center">
       <div className="w-full">
-          <div className="container mx-auto px-6">
+          <div className="container mx-auto px-6 pt-6">
             <div className="space-y-6">
               <div className="space-y-2">
                 <Skeleton className="h-12 w-1/3" />
@@ -221,11 +221,11 @@ const Marketplace = () => {
   }
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
+    <div className="flex flex-col items-center justify-center">
       <div className="w-full">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-6 pt-6">
           {/* Header */}
-          <div className="mb-12">
+          <div className="mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <div>
                 <h1 className="text-4xl md:text-5xl font-bold mb-4">Marketplace</h1>

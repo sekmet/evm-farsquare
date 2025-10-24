@@ -23,6 +23,7 @@ import MarketplaceDetails from "@/pages/marketplace/MarketplaceDetails";
 import Properties from "@/pages/properties/Properties";
 import PropertyDetails from "@/pages/properties/PropertyDetails";
 import AIInsights from "@/pages/ai-insights/AIInsights";
+import PropertiesOverview from "@/pages/properties/PropertiesOverview";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ function AppRoutes() {
         <Route path="/marketplace" element={<Marketplace />} />
         <Route path="/marketplace/:id" element={<MarketplaceDetails />} />
         <Route path="/properties" element={<Properties />} />
+        <Route path="/properties/overview" element={<PropertiesOverview />} />
         <Route path="/properties/:id" element={<PropertyDetails />} />
         <Route path="/analytics" element={<AIInsights />} />
       </Routes>

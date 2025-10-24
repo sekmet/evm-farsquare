@@ -145,7 +145,7 @@ const PropertiesOverview = () => {
       benefits: ["Regulatory Compliance", "Fractional Ownership", "Liquidity"],
     },
     {
-      title: "EVM Settlement",
+      title: "EVM Multi-Chain Settlement",
       description: "Decentralized settlement for all property transactions on EVM networks",
       icon: Coins,
       benefits: ["Fast Settlements", "Low Fees", "Multi-Chain Support"],
@@ -180,15 +180,15 @@ const PropertiesOverview = () => {
 
   // Activity data loaded from API via useEffect above
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
+    <div className="flex min-h-svh flex-col items-center justify-center">
       <div className="w-full">
       {/* Hero Section */}
-      <section className="pt-24 pb-16 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
+      <section className="pb-16 pt-6">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-4xl mx-auto">
             <Badge variant="outline" className="mb-4">
               <Zap className="w-3 h-3 mr-1" />
-              Powered by EVM & ERC-3643
+              Powered by Multi-Chain EVM Networks & ERC-3643
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Tokenized Real Estate
@@ -197,7 +197,7 @@ const PropertiesOverview = () => {
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Invest in fractional real estate ownership through ERC-3643 compliant security tokens.
-              Experience decentralized property investment with EVM settlement and audited smart contracts.
+              Experience decentralized property investment with EVM Multi-Chain settlement and audited smart contracts.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>
@@ -218,7 +218,7 @@ const PropertiesOverview = () => {
       </section>
 
       {/* Market Statistics */}
-      <section className="py-16">
+      <section className="py-12">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">Market Overview</h2>
@@ -413,21 +413,21 @@ const PropertiesOverview = () => {
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>ERC-3643 Level 3 Compliance:</strong> All property tokens are issued as ERC-3643 Level 3 compliant security tokens with full regulatory compliance on EVM networks.
+                    <strong>ERC-3643 Compliance:</strong> All property tokens are issued as ERC-3643 compliant security tokens with full regulatory compliance on EVM networks.
                   </AlertDescription>
                 </Alert>
 
                 <Alert>
                   <Shield className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>EVM Smart Contract Security:</strong> Properties are tokenized using audited ERC-3643 Level 3 smart contracts on Ethereum Virtual Machine networks.
+                    <strong>Multi-Chain Smart Contract Security:</strong> Properties are tokenized using audited ERC-3643 smart contracts on Ethereum Virtual Machine networks.
                   </AlertDescription>
                 </Alert>
 
                 <Alert>
                   <Coins className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>EVM Settlement:</strong> All property transactions settle using EVM native mechanisms for fast, secure settlement across supported networks.
+                    <strong>Multi-Chain Settlement:</strong> All property transactions settle using EVM native mechanisms for fast, secure settlement across supported networks.
                   </AlertDescription>
                 </Alert>
 

@@ -184,7 +184,6 @@ const AIInsights = () => {
   if (isLoading && !lastUpdate) {
     return (
       <div className="min-h-screen bg-background">
-
         <main className="pt-24 pb-16">
           <div className="container mx-auto px-6">
             <div className="space-y-6">
@@ -216,11 +215,11 @@ const AIInsights = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 md:p-10">
+    <div className="flex flex-col items-center justify-center">
       <div className="w-full">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-6 pt-6">
           {/* Header */}
-          <div className="mb-12">
+          <div className="mb-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
                 <div>
@@ -270,7 +269,7 @@ const AIInsights = () => {
           )}
 
           {/* AI Insights Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
             {insights.map((insight) => {
               const Icon = getInsightIcon(insight.icon);
               return (
