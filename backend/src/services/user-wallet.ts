@@ -7,12 +7,7 @@
 import {
   createPublicClient,
   http,
-  type Address,
-  type Hex,
-  type PublicClient,
-  type Chain,
-  formatEther,
-  formatUnits
+  formatEther
 } from 'viem'
 import {
   mainnet,
@@ -26,9 +21,27 @@ import {
   arbitrum,
   arbitrumSepolia
 } from 'viem/chains'
+import {
+  HypersyncClient,
+  LogField,
+  TransactionField,
+  BlockField,
+  JoinMode
+} from '@envio-dev/hypersync-client';
+import type {
+  FieldSelection,
+  TransactionSelection
+} from '@envio-dev/hypersync-client';
+import type {
+  Address,
+  Hex,
+  PublicClient,
+  Chain
+} from 'viem'
 import type { Pool } from "pg";
 import type { DbResult } from "./database";
 import type { EVMNetwork as BaseEVMNetwork } from "./contracts";
+import { env } from "../lib/env";
 
 // Local EVMNetwork type that includes 'sepolia' for wallet operations
 export type EVMNetwork = BaseEVMNetwork | 'sepolia';
@@ -44,15 +57,15 @@ export const WALLET_SUPPORTED_NETWORKS: EVMNetwork[] = [
 export const WALLET_CHAIN_CONFIGS: Record<EVMNetwork, { chain: Chain; rpcUrl: string }> = {
   'optimism-testnet': {
     chain: optimismSepolia,
-    rpcUrl: process.env.OPTIMISM_SEPOLIA_RPC_URL || 'https://sepolia.optimism.io'
+    rpcUrl: env.OPTIMISM_SEPOLIA_RPC_URL as string
   },
   'testnet': {
     chain: baseSepolia,
-    rpcUrl: process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'
+    rpcUrl: env.BASE_SEPOLIA_RPC_URL as string
   },
   'sepolia': {
     chain: sepolia,
-    rpcUrl: process.env.SEPOLIA_RPC_URL || 'https://sepolia.infura.io'
+    rpcUrl: env.SEPOLIA_RPC_URL as string
   },
   // Add other networks for completeness but not used for wallet operations
   mainnet: { chain: mainnet, rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://mainnet.infura.io' },
@@ -62,6 +75,21 @@ export const WALLET_CHAIN_CONFIGS: Record<EVMNetwork, { chain: Chain; rpcUrl: st
   'arbitrum': { chain: arbitrum, rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc' },
   'arbitrum-testnet': { chain: arbitrumSepolia, rpcUrl: process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc' },
   devnet: { chain: baseSepolia, rpcUrl: process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org' }
+};
+
+// HyperSync URL mappings for supported networks
+export const HYPERSYNC_NETWORK_URLS: Record<EVMNetwork, string> = {
+  'optimism-testnet': 'http://optimism-sepolia.hypersync.xyz',
+  'testnet': 'http://base-sepolia.hypersync.xyz',
+  'sepolia': 'http://sepolia.hypersync.xyz',
+  // Fallback URLs for other networks (not used for wallet operations)
+  mainnet: 'http://eth.hypersync.xyz',
+  'polygon': 'http://polygon.hypersync.xyz',
+  'polygon-testnet': 'http://polygon-mumbai.hypersync.xyz',
+  'optimism': 'http://optimism.hypersync.xyz',
+  'arbitrum': 'http://arbitrum.hypersync.xyz',
+  'arbitrum-testnet': 'http://arbitrum-sepolia.hypersync.xyz',
+  devnet: 'http://base-sepolia.hypersync.xyz'
 };
 
 // ERC20 ABI for balance queries
@@ -136,7 +164,7 @@ export interface TransactionInfo {
   nonce: number;
   maxFeePerGas?: bigint;
   maxPriorityFeePerGas?: bigint;
-  type: 'legacy' | 'eip1559' | 'eip2930';
+  type: 'legacy' | 'eip1559' | 'eip2930' | 'eip4844' | 'eip7702';
 }
 
 /**
@@ -196,6 +224,7 @@ function serializeTransactionInfo(tx: TransactionInfo): any {
     ...(tx.gasUsed && { gasUsed: tx.gasUsed.toString() }),
     ...(tx.maxFeePerGas && { maxFeePerGas: tx.maxFeePerGas.toString() }),
     ...(tx.maxPriorityFeePerGas && { maxPriorityFeePerGas: tx.maxPriorityFeePerGas.toString() }),
+    nonce: tx.nonce?.toString() || '0', // Also serialize nonce as string
   };
 }
 
@@ -217,13 +246,16 @@ function serializeWalletInfo(walletInfo: WalletInfo): any {
 export class UserWalletService {
   private pool: Pool;
   private networkClients: Map<EVMNetwork, PublicClient>;
+  private hypersyncClients: Map<EVMNetwork, any>; // HyperSync client type
 
   constructor(pool: Pool) {
     this.pool = pool;
     this.networkClients = new Map();
+    this.hypersyncClients = new Map();
 
     // Initialize clients for supported networks
     this.initializeNetworkClients();
+    this.initializeHypersyncClients();
   }
 
   /**
@@ -243,10 +275,37 @@ export class UserWalletService {
   }
 
   /**
+   * Initialize HyperSync clients for all supported networks
+   */
+  private initializeHypersyncClients(): void {
+    for (const network of WALLET_SUPPORTED_NETWORKS) {
+      const hypersyncUrl = HYPERSYNC_NETWORK_URLS[network];
+      if (hypersyncUrl) {
+        try {
+          const client = HypersyncClient.new({
+            url: hypersyncUrl,
+            // bearerToken: process.env.HYPERSYNC_BEARER_TOKEN, // Add if using API tokens
+          });
+          this.hypersyncClients.set(network, client);
+        } catch (error) {
+          console.error(`Failed to initialize HyperSync client for ${network}:`, error);
+        }
+      }
+    }
+  }
+
+  /**
    * Get public client for specific network
    */
   private getNetworkClient(network: EVMNetwork): PublicClient | null {
     return this.networkClients.get(network) || null;
+  }
+
+  /**
+   * Get HyperSync client for specific network
+   */
+  private getHypersyncClient(network: EVMNetwork): any | null {
+    return this.hypersyncClients.get(network) || null;
   }
 
   /**
@@ -342,10 +401,105 @@ export class UserWalletService {
   }
 
   /**
-   * Get recent transactions for address on network
-   * Scans recent blocks for transactions involving the address (testnet/demo implementation)
+   * Get recent transactions for address on network using HyperSync
    */
   private async getNetworkTransactions(
+    address: Address,
+    network: EVMNetwork,
+    limit: number = 10
+  ): Promise<TransactionInfo[]> {
+    const hypersyncClient = this.getHypersyncClient(network);
+    if (!hypersyncClient) {
+      console.warn(`HyperSync client not available for ${network}, falling back to manual scanning`);
+      return this.getNetworkTransactionsFallback(address, network, limit);
+    }
+
+    try {
+      // Create field selection for transaction data
+      const fieldSelection = {
+        block: [BlockField.Number, BlockField.Timestamp, BlockField.Hash],
+        transaction: [
+          TransactionField.Hash,
+          TransactionField.BlockNumber,
+          TransactionField.TransactionIndex,
+          TransactionField.From,
+          TransactionField.To,
+          TransactionField.Value,
+          TransactionField.GasPrice,
+          TransactionField.Gas,
+          TransactionField.GasUsed,
+          TransactionField.Status,
+          TransactionField.Input,
+          TransactionField.Nonce,
+          TransactionField.Kind, // Transaction type (0=legacy, 1=EIP-2930, 2=EIP-1559, 3=EIP-4844, 4=EIP-7702)
+          TransactionField.MaxFeePerGas,
+          TransactionField.MaxPriorityFeePerGas,
+        ],
+      };
+
+      // Create transaction selection for transactions involving the address
+      const transactionSelection = [
+        { from: [address] },
+        { to: [address] }
+      ];
+
+      // Create query - get recent transactions (last 1000 blocks for testnets)
+      const query = {
+        transactions: transactionSelection,
+        fieldSelection,
+        fromBlock: 0, // Start from genesis for comprehensive search
+        maxNumTransactions: limit,
+        joinMode: JoinMode.JoinNothing, // Only get transaction data
+      };
+
+      console.log(`Querying HyperSync for ${address} on ${network}`);
+
+      // Execute query
+      const result = await hypersyncClient.get(query);
+
+      if (!result.data?.transactions) {
+        console.log(`No transactions found for ${address} on ${network}`);
+        return [];
+      }
+
+      // Convert HyperSync format to our TransactionInfo format
+      const transactions: TransactionInfo[] = result.data.transactions.map((tx: any) => {
+        return {
+          hash: tx.hash as Hex,
+          blockNumber: BigInt(tx.blockNumber || 0),
+          blockHash: tx.blockHash || '0x',
+          transactionIndex: tx.transactionIndex || 0,
+          from: tx.from as Address,
+          to: tx.to as Address || null,
+          value: BigInt(tx.value || 0),
+          gasPrice: BigInt(tx.gasPrice || 0),
+          gasLimit: BigInt(tx.gas || 21000),
+          gasUsed: tx.gasUsed ? BigInt(tx.gasUsed) : undefined,
+          status: tx.status === 1 ? 'success' : tx.status === 0 ? 'failed' : 'pending',
+          timestamp: tx.blockTimestamp ? new Date(Number(tx.blockTimestamp) * 1000) : undefined,
+          network,
+          input: tx.input || '0x',
+          nonce: tx.nonce || 0,
+          type: tx.type === 0 ? 'legacy' : tx.type === 2 ? 'eip1559' : tx.type === 1 ? 'eip2930' : 'legacy',
+          maxFeePerGas: tx.maxFeePerGas ? BigInt(tx.maxFeePerGas) : undefined,
+          maxPriorityFeePerGas: tx.maxPriorityFeePerGas ? BigInt(tx.maxPriorityFeePerGas) : undefined,
+        } as TransactionInfo;
+      });
+
+      console.log(`Found ${transactions.length} transactions for ${address} on ${network}`);
+      return transactions;
+
+    } catch (error) {
+      console.error(`Failed to get transactions via HyperSync for ${address} on ${network}:`, error);
+      // Fallback to manual scanning
+      return this.getNetworkTransactionsFallback(address, network, limit);
+    }
+  }
+
+  /**
+   * Fallback method using manual block scanning (original implementation)
+   */
+  private async getNetworkTransactionsFallback(
     address: Address,
     network: EVMNetwork,
     limit: number = 10
@@ -398,7 +552,7 @@ export class UserWalletService {
                 to: tx.to as Address || null,
                 value: tx.value || 0n,
                 gasPrice: tx.gasPrice || 0n,
-                gasLimit: tx.gasLimit || 21000n, // Default to standard ETH transfer gas limit
+                gasLimit: tx.gas || 21000n, // Default to standard ETH transfer gas limit
                 gasUsed: receipt.gasUsed,
                 status: receipt.status === 'success' ? 'success' : 'failed',
                 timestamp: new Date(Number(block.timestamp) * 1000),
@@ -526,21 +680,24 @@ export class UserWalletService {
         return transactionsResult as any;
       }
 
+      // At this point, we know transactionsResult.success is true, so data exists
+      const transactionsData = transactionsResult.data!;
+
       // Calculate summary
       const summary: WalletSummary = {
         address,
         totalBalanceUSD: 0, // Would need price oracle integration
         networks: WALLET_SUPPORTED_NETWORKS,
-        lastActivity: transactionsResult.data && transactionsResult.data.length > 0 ?
-          transactionsResult.data[0].timestamp || null : null,
-        totalTransactions: transactionsResult.data ? transactionsResult.data.length : 0,
+        lastActivity: transactionsData && transactionsData.length > 0 ?
+          transactionsData[0]?.timestamp || null : null,
+        totalTransactions: transactionsData ? transactionsData.length : 0,
       };
 
       const walletInfo: WalletInfo = {
         address,
         summary,
         balances: balancesResult.data,
-        recentTransactions: transactionsResult.data,
+        recentTransactions: transactionsData,
         supportedNetworks: WALLET_SUPPORTED_NETWORKS,
       };
 

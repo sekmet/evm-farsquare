@@ -23,6 +23,19 @@ export const env = {
   ETHEREUM_RPC_URL: process.env.ETHEREUM_RPC_URL || "https://cloudflare-eth.com",
   SIWE_DOMAIN: process.env.SIWE_DOMAIN,
 
+  // Optional: Additional allowed CORS origins (comma-separated)
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || "http://localhost:3000,http://localhost:5173",
+
+  // EVM Blockchain Contracts and APIs
+  EVM_RPC_URL: process.env.EVM_RPC_URL || "http://127.0.0.1:8545",
+  WALLET_PRIVATE_KEY: process.env.WALLET_PRIVATE_KEY,
+  ETHERSCAN_API_KEY: process.env.ETHERSCAN_API_KEY,
+  INFURA_API_KEY: process.env.INFURA_API_KEY,
+  ALCHEMY_API_KEY: process.env.ALCHEMY_API_KEY,
+  OPTIMISM_SEPOLIA_RPC_URL: process.env.OPTIMISM_SEPOLIA_RPC_URL,
+  BASE_SEPOLIA_RPC_URL: process.env.BASE_SEPOLIA_RPC_URL,
+  SEPOLIA_RPC_URL: process.env.SEPOLIA_RPC_URL,
+
   // Node Environment
   NODE_ENV: process.env.NODE_ENV || "development",
 };
@@ -36,6 +49,14 @@ export function validateEnvironment(): void {
     "BETTER_AUTH_URL",
     "DATABASE_URL",
     "SIWE_DOMAIN",
+    "EVM_RPC_URL",
+    "WALLET_PRIVATE_KEY",
+    "ETHERSCAN_API_KEY",
+    "INFURA_API_KEY",
+    "ALCHEMY_API_KEY",
+    "OPTIMISM_SEPOLIA_RPC_URL",
+    "BASE_SEPOLIA_RPC_URL",
+    "SEPOLIA_RPC_URL",
   ];
 
   const missingVars = requiredVars.filter(varName => !env[varName as keyof typeof env]);
