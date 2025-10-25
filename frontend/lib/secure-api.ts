@@ -267,6 +267,16 @@ export class SecureApiClient {
     }
   }
 
+  /**
+   * Deploy Property Token 
+   * */
+  async deployToken(propertyId: string, tokenData: any): Promise<SecureApiResponse> {
+    return this.makeRequestPrivate(`/api/properties/${propertyId}/deploy-token`, {
+      method: "POST",
+      body: JSON.stringify(tokenData),
+    });
+  }
+
 }
 
 // Factory function to create secure API client

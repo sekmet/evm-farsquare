@@ -9,10 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Upload, Copy, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Copy, ChevronDown } from 'lucide-react';
 import { usePropertyDetails } from '@/hooks/use-property-details';
 import { useMutation } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { createSecureApiClientFromEnv } from '@/lib/secure-api';
 
 interface TokenDeploymentData {
   // Token basic info
@@ -34,6 +35,10 @@ interface TokenDeploymentData {
 
   // Property linkage
   propertyId: string;
+
+  // Token type
+  instrumentType: string;
+  baseCurrency: string;
 }
 
 interface TokenDeploymentParams {
@@ -48,6 +53,9 @@ const DeployToken = () => {
   const { state } = useWallet();
   const { toast } = useToast();
 
+  // Initialize secure API client
+  const secureApi = createSecureApiClientFromEnv();
+
   // Step management
   const [currentStep, setCurrentStep] = useState<'form' | 'confirmation'>('form');
 
@@ -57,6 +65,8 @@ const DeployToken = () => {
     symbol: '',
     decimals: 18,
     totalSupply: 1000000,
+    instrumentType: 'EQUITY',
+    baseCurrency: 'PYUSD',
     countryRestrictions: ['840', '826', '756'], // USA, UK, Switzerland
     maxBalance: 100000000000000000000000, // 100k tokens
     maxHolders: 1000,
@@ -96,21 +106,18 @@ const DeployToken = () => {
   // Token deployment mutation
   const deployToken = useMutation({
     mutationFn: async (params: TokenDeploymentParams) => {
-      const response = await fetch('/api/properties/deploy-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(params),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to deploy token');
+      if (!propertyId) {
+        throw new Error('Property ID is required');
       }
 
-      return data.data;
+      // Use secure API client to deploy token
+      const response = await secureApi.deployToken(propertyId, params.tokenData);
+
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to deploy token');
+      }
+
+      return response.data;
     },
     onSuccess: (data) => {
       toast({
@@ -207,21 +214,21 @@ const DeployToken = () => {
   if (currentStep === 'form') {
     return (
       <div className="flex flex-col items-center justify-center">
-        <div className="w-full max-w-4xl">
+        <div className="w-full">
           <main className="pb-16 pt-6">
             <div className="container mx-auto px-6">
-              {/* Header */}
-              <div className="mb-8">
                 <Button
                   variant="ghost"
                   onClick={() => navigate(`/properties/${propertyId}`)}
                   className="mb-4"
                 >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  <ArrowLeft className="w-4 h-4" />
                   Back to Property
                 </Button>
-                <h1 className="text-3xl font-bold mb-2">Deploy ERC-3643 Token</h1>
-                <p className="text-muted-foreground">
+              {/* Header */}
+              <div className="mb-8">
+                <h1 className="text-3xl font-bold mb-2">Deploy ERC-3643 Property Token</h1>
+                <p className="text-muted-foreground p-2">
                   Deploy a compliant security token for property: <strong>{property.name}</strong>
                 </p>
               </div>
@@ -243,8 +250,8 @@ const DeployToken = () => {
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Left Column */}
-                      <div className="space-y-4">
-                        <div>
+                      <div className="space-y-6">
+                        <div className="space-y-2">
                           <Label htmlFor="name">Token Name *</Label>
                           <Input
                             id="name"
@@ -255,7 +262,7 @@ const DeployToken = () => {
                           />
                         </div>
 
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="symbol">Token Symbol *</Label>
                           <Input
                             id="symbol"
@@ -266,7 +273,7 @@ const DeployToken = () => {
                           />
                         </div>
 
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="decimals">Decimals</Label>
                           <Input
                             id="decimals"
@@ -280,8 +287,8 @@ const DeployToken = () => {
                       </div>
 
                       {/* Right Column */}
-                      <div className="space-y-4">
-                        <div>
+                      <div className="space-y-6">
+                        <div className="space-y-2">
                           <Label htmlFor="totalSupply">Total Supply</Label>
                           <Input
                             id="totalSupply"
@@ -292,11 +299,11 @@ const DeployToken = () => {
                           />
                         </div>
 
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="instrumentType">Instrument Type</Label>
-                          <Select value="EQUITY" disabled>
+                          <Select name="instrumentType">
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue defaultValue={formData.instrumentType} />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="EQUITY">EQUITY</SelectItem>
@@ -304,15 +311,16 @@ const DeployToken = () => {
                           </Select>
                         </div>
 
-                        <div>
+                        <div className="space-y-2">
                           <Label htmlFor="baseCurrency">Base Currency</Label>
-                          <Select value="EUR" disabled>
+                          <Select name="baseCurrency">
                             <SelectTrigger>
-                              <SelectValue />
+                              <SelectValue defaultValue={formData.baseCurrency} />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="EUR">EUR</SelectItem>
-                              <SelectItem value="USD">USD</SelectItem>
+                              <SelectItem value="PYUSD">PYUSD</SelectItem>
+                              <SelectItem value="USDC">USDC</SelectItem>
+                              <SelectItem value="EURC">EURC</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -335,11 +343,11 @@ const DeployToken = () => {
                       </div>
                       <div className="space-y-1">
                         <p className="text-xs font-medium text-muted-foreground uppercase">Instrument type</p>
-                        <p className="font-medium">EQUITY</p>
+                        <p className="font-medium">{formData.instrumentType}</p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-xs font-medium text-muted-foreground uppercase">Base currency</p>
-                        <p className="font-medium">EUR</p>
+                        <p className="font-medium">{formData.baseCurrency}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -422,9 +430,10 @@ const DeployToken = () => {
                 <div className="flex justify-end">
                   <Button
                     type="submit"
-                    className="bg-[#7B3FE4] hover:bg-[#6a32d1] text-white px-8 py-3 text-lg"
+                    className="bg-[#7B3FE4] hover:bg-[#6a32d1] text-white px-8 py-3 font-semibold"
                   >
-                    Review Token Configuration →
+                    Review Token Configuration
+                    <ArrowRight className="w-4 h-4" />
                   </Button>
                 </div>
               </form>
@@ -438,22 +447,42 @@ const DeployToken = () => {
   // Confirmation step
   return (
     <div className="flex flex-col items-center justify-center">
-      <div className="w-full max-w-4xl">
+      <div className="w-full">
         <main className="pb-16 pt-6">
           <div className="container mx-auto px-6">
             {/* Header */}
-            <div className="mb-8">
+            <div className="mb-8 flex items-start justify-between">
+              <div>
               <Button
                 variant="ghost"
                 onClick={() => setCurrentStep('form')}
-                className="mb-4"
+                className="mb-8"
               >
-                ← Back to Form
+              <ArrowLeft className="w-4 h-4" />
+              Back to Form
               </Button>
-              <h1 className="text-3xl font-bold mb-2">Confirm Token Deployment</h1>
+              <h1 className="text-3xl font-bold">{formData.symbol}</h1>
               <p className="text-muted-foreground">
-                Review your token configuration before deployment
+                {formData.name}
               </p>
+              </div>
+              {/* Right Column - Deploy Button */}
+              <Button
+                onClick={handleDeploy}
+                disabled={deployToken.isPending}
+                className="bg-[#7B3FE4] hover:bg-[#6a32d1] text-white px-8 py-3 font-semibold"
+              >
+                {deployToken.isPending ? (
+                  <>
+                    <div className="animate-spin rounded-md h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Deploying Token...
+                  </>
+                ) : (
+                  'Deploy Token'
+                )}
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+
             </div>
 
             {/* Token Overview Card */}
@@ -490,22 +519,6 @@ const DeployToken = () => {
                       <p className="font-medium">{formData.totalSupply.toLocaleString()}</p>
                     </div>
                   </div>
-
-                  {/* Right Column - Deploy Button */}
-                  <Button
-                    onClick={handleDeploy}
-                    disabled={deployToken.isPending}
-                    className="bg-[#7B3FE4] hover:bg-[#6a32d1] text-white px-8 py-3 text-lg"
-                  >
-                    {deployToken.isPending ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Deploying Token...
-                      </>
-                    ) : (
-                      'Deploy Token →'
-                    )}
-                  </Button>
                 </div>
               </CardContent>
             </Card>
