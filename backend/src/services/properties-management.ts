@@ -24,6 +24,7 @@ export interface PropertyCreateData {
   fundingProgress: number;
   minimumInvestment: string;
   ownerAddress: string;
+  createdBy: string;
 }
 
 export interface PropertyUpdateData {
