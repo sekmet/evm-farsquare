@@ -861,6 +861,30 @@ app.get("/api/wallet/networks", async (c) => {
   }
 });
 
+// Get asset prices for USD calculations in frontend
+app.get("/api/prices", async (c) => {
+  try {
+    if (!priceService) {
+      return c.json({ error: "Price service not initialized" }, 500);
+    }
+
+    // Get asset prices from price service
+    const assetPrices = await priceService.getAssetPrices();
+
+    return c.json({
+      success: true,
+      data: assetPrices,
+    });
+  } catch (error) {
+    console.error("Get asset prices error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to get asset prices",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
 // Properties API endpoints
 app.get("/api/properties", async (c) => {
   try {

@@ -490,6 +490,7 @@ export class UserWalletService {
       // Create field selection for transaction data
       const fieldSelection = {
         block: [BlockField.Number, BlockField.Timestamp, BlockField.Hash],
+        log: [LogField.Address, LogField.Topic0, LogField.Topic1, LogField.Topic2, LogField.Topic3, LogField.Data],
         transaction: [
           TransactionField.Hash,
           TransactionField.BlockNumber,
@@ -521,7 +522,7 @@ export class UserWalletService {
         fieldSelection,
         fromBlock: 0, // Start from genesis for comprehensive search
         maxNumTransactions: limit,
-        joinMode: JoinMode.JoinNothing, // Only get transaction data
+        joinMode: JoinMode.JoinAll, // Join transactions with their logs
       };
 
       console.log(`Querying HyperSync for ${address} on ${network}`);
@@ -536,6 +537,11 @@ export class UserWalletService {
 
       // Convert HyperSync format to our TransactionInfo format
       const transactions: TransactionInfo[] = result.data.transactions.map((tx: any) => {
+        // Group logs by transaction
+        const transactionLogs = result.data.logs?.filter((log: any) => 
+          log.transactionHash === tx.hash
+        ) || [];
+
         return {
           hash: tx.hash as Hex,
           blockNumber: BigInt(tx.blockNumber || 0),
@@ -550,6 +556,11 @@ export class UserWalletService {
           status: tx.status === 1 ? 'success' : tx.status === 0 ? 'failed' : 'pending',
           timestamp: tx.blockTimestamp ? new Date(Number(tx.blockTimestamp) * 1000) : undefined,
           network,
+          logs: transactionLogs.map((log: any) => ({
+            address: log.address,
+            topics: log.topics || [],
+            data: log.data || '0x'
+          })),
           input: tx.input || '0x',
           nonce: tx.nonce || 0,
           type: tx.type === 0 ? 'legacy' : tx.type === 2 ? 'eip1559' : tx.type === 1 ? 'eip2930' : 'legacy',
@@ -629,6 +640,11 @@ export class UserWalletService {
                 status: receipt.status === 'success' ? 'success' : 'failed',
                 timestamp: new Date(Number(block.timestamp) * 1000),
                 network,
+                logs: receipt.logs?.map(log => ({
+                  address: log.address,
+                  topics: log.topics,
+                  data: log.data
+                })) || [],
                 nonce: tx.nonce || 0,
                 input: tx.input || '0x',
                 type: tx.type || 'legacy',

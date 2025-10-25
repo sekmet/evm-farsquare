@@ -28,6 +28,7 @@ import {
   fetchETHPrice,
   fetchPYUSDPrice,
   fetchPAXGOLDPrice,
+  fetchOptimismPrice,
   fetchUSDCPrice,
   fetchEURCPrice,
   clearPriceCache,
@@ -241,18 +242,20 @@ export class PriceService {
   /**
    * Get asset prices using cached price service
    */
-  private async getAssetPrices(): Promise<{
+  async getAssetPrices(): Promise<{
     ethPrice: number;
     pyusdPrice: number;
     paxgoldPrice: number;
+    optimismPrice: number;
     usdcPrice: number;
     eurcPrice: number;
   }> {
     try {
-      const [ethPrice, pyusdPrice, paxgoldPrice, usdcPrice, eurcPrice] = await Promise.all([
+      const [ethPrice, pyusdPrice, paxgoldPrice, optimismPrice, usdcPrice, eurcPrice] = await Promise.all([
         fetchETHPrice(),
         fetchPYUSDPrice(),
         fetchPAXGOLDPrice(),
+        fetchOptimismPrice(),
         fetchUSDCPrice(),
         fetchEURCPrice()
       ]);
@@ -261,6 +264,7 @@ export class PriceService {
         ethPrice,
         pyusdPrice,
         paxgoldPrice,
+        optimismPrice,
         usdcPrice,
         eurcPrice
       };
@@ -270,6 +274,7 @@ export class PriceService {
         ethPrice: 2500, // Fallback ETH price
         pyusdPrice: 1.0, // PYUSD is pegged to USD
         paxgoldPrice: 2200, // Fallback PAXG price
+        optimismPrice: 2.5, // Fallback OP price
         usdcPrice: 1.0, // USDC is pegged to USD
         eurcPrice: 1.08 // Fallback EURC price (approx EUR/USD rate)
       };
@@ -483,6 +488,7 @@ export class PriceService {
         ethPrice: assetPrices.ethPrice,
         pyusdPrice: assetPrices.pyusdPrice,
         paxgoldPrice: assetPrices.paxgoldPrice,
+        optimismPrice: assetPrices.optimismPrice,
         usdcPrice: assetPrices.usdcPrice,
         eurcPrice: assetPrices.eurcPrice,
         priceChange24h,

@@ -237,6 +237,53 @@ export const fetchUSDCPrice = async (): Promise<number> => {
 };
 
 /**
+ * Fetch Optimism price with caching
+ */
+export const fetchOptimismPrice = async (): Promise<number> => {
+  // Return cached value if valid
+  if (isCacheValid(priceCache.optimism)) {
+    console.log("Using cached Optimism price:", priceCache.optimism!.value);
+    return priceCache.optimism!.value;
+  }
+
+  console.log("Fetching fresh Optimism price from CoinGecko...");
+  
+  try {
+    const response = await fetch(OPTIMISM_PRICE_ENDPOINT);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Optimism price: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json() as CoinGeckoSimplePriceResponse;
+    const optimismData = data.optimism;
+    if (!optimismData || typeof optimismData.usd !== 'number') {
+      throw new Error("Optimism price data unavailable from provider response");
+    }
+    const value = Number(optimismData.usd);
+    
+    if (Number.isNaN(value)) {
+      throw new Error("Optimism price unavailable from provider response");
+    }
+
+    // Update cache
+    priceCache.optimism = {
+      value,
+      timestamp: Date.now(),
+    };
+
+    console.log("Optimism price cached:", value);
+    return value;
+  } catch (error) {
+    // If fetch fails but we have old cached data, use it
+    if (priceCache.optimism) {
+      console.warn("Optimism price fetch failed, using stale cache:", error);
+      return priceCache.optimism.value;
+    }
+    throw error;
+  }
+};
+
+/**
  * Fetch EURC price with caching
  */
 export const fetchEURCPrice = async (): Promise<number> => {
