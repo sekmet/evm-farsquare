@@ -556,7 +556,7 @@ const AddProperty = () => {
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div className="w-full max-w-4xl">
+      <div className="w-full">
         <main className="pb-16 pt-6">
           <div className="container mx-auto px-6">
             {/* Header */}

@@ -26,6 +26,9 @@ import AIInsights from "@/pages/ai-insights/AIInsights";
 import PropertiesOverview from "@/pages/properties/PropertiesOverview";
 import UserProfile from "@/pages/UserProfile";
 import UserWallet from "@/pages/UserWallet";
+import AddProperty from "@/pages/properties/AddProperty";
+import UpdateProperty from "@/pages/properties/UpdateProperty";
+import DeployToken from "@/pages/properties/DeployToken";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +79,9 @@ function AppRoutes() {
         <Route path="/properties" element={<Properties />} />
         <Route path="/properties/overview" element={<PropertiesOverview />} />
         <Route path="/properties/:id" element={<PropertyDetails />} />
+        <Route path="/properties/new-property" element={<AddProperty />} />
+        <Route path="/properties/:id/update-property" element={<UpdateProperty />} />
+        <Route path="/properties/:id/deploy-token" element={<DeployToken />} />
         <Route path="/analytics" element={<AIInsights />} />
         <Route path="/wallet" element={<UserWallet />} />
       </Routes>

@@ -15,6 +15,7 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { ThemeSelector } from "@/components/theme-selector"
 import { useAuth } from "@/contexts/AuthContext"
 import { useAccount, useBalance } from "wagmi"
+import { useNavigate } from "react-router-dom"
 import {
   IconBell,
   IconWallet,
@@ -24,6 +25,7 @@ import {
   IconSettings,
   IconCreditCard,
   IconCirclePlusFilled,
+  IconBuildingEstate
 } from "@tabler/icons-react"
 
 export function SiteHeader() {
@@ -32,6 +34,7 @@ export function SiteHeader() {
   const { data: balance } = useBalance({
     address,
   })
+  const navigate = useNavigate()
 
   return (
     <header className="@container/main flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
@@ -45,11 +48,15 @@ export function SiteHeader() {
 
         {/* Quick Actions */}
         <div className="ml-auto flex items-center gap-2" data-testid="quick-actions">
-          <Button variant="outline" size="sm" className="hidden sm:flex">
+          <Button variant="outline" size="sm" className="hidden sm:flex" onClick={() => navigate('/properties/new-property')}>
+            <IconBuildingEstate className="h-4 w-4 fill-emerald-600" />
+            Add Property
+          </Button>
+          <Button variant="outline" size="sm" className="hidden sm:flex" onClick={() => navigate('/properties/new')} disabled>
             <IconCirclePlusFilled className="h-4 w-4 fill-amber-400" />
             Tokenize Asset
           </Button>
-          <Button variant="outline" size="sm" className="hidden sm:flex">
+          <Button variant="outline" size="sm" className="hidden sm:flex" onClick={() => navigate('/compliance')} disabled>
             <IconShieldCheck className="h-4 w-4 fill-sky-600" />
             View Compliance
           </Button>
