@@ -127,7 +127,7 @@ try {
 
   // Initialize contracts service for EVM networks
   contractsService = new ERC3643ContractsService(
-    (process.env.EVM_NETWORK as EVMNetwork) || 'polygon-testnet'
+    (process.env.EVM_NETWORK as EVMNetwork) || 'polygon-amoy'
   );
 
   // Initialize identity service (after contractsService)

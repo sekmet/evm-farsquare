@@ -776,4 +776,4 @@ export class MonitoringService {
 }
 
 // Default singleton instance for backward compatibility
-export const monitoringService = new MonitoringService(new ERC3643ContractsService('testnet'));
+export const monitoringService = new MonitoringService(new ERC3643ContractsService('base-sepolia'));

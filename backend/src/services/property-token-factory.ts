@@ -93,14 +93,16 @@ export class PropertyTokenFactoryService {
     // Network-specific TREX factory addresses (must be ERC-3643 compliant)
     const factoryAddresses: Record<EVMNetwork, Address> = {
       mainnet: process.env.MAINNET_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
-      testnet: process.env.TESTNET_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
+      sepolia: process.env.SEPOLIA_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
+      base: process.env.BASE_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
+      'base-sepolia': process.env.BASE_SEPOLIA_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
       devnet: process.env.DEVNET_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
       polygon: process.env.POLYGON_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
-      'polygon-testnet': process.env.POLYGON_TESTNET_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
+      'polygon-amoy': process.env.POLYGON_AMOY_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
       optimism: process.env.OPTIMISM_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
-      'optimism-testnet': process.env.OPTIMISM_TESTNET_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
+      'optimism-sepolia': process.env.OPTIMISM_SEPOLIA_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
       arbitrum: process.env.ARBITRUM_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address,
-      'arbitrum-testnet': process.env.ARBITRUM_TESTNET_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address
+      'arbitrum-sepolia': process.env.ARBITRUM_SEPOLIA_TREX_FACTORY_ADDRESS as Address || '0x0000000000000000000000000000000000000000' as Address
     };
 
     // Validate factory address exists for network
