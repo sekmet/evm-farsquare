@@ -195,8 +195,8 @@ export default function UserProfile() {
     <div className="container mx-auto py-8 space-y-6 px-6">
       {/* Header Section */}
       <div className="flex items-center space-x-4">
-        <Avatar className="h-16 w-16">
-          <AvatarFallback className="text-lg">
+        <Avatar className="h-24 w-24">
+          <AvatarFallback className="text-4xl font-bold bg-accent">
             {profile.full_name?.split(' ').map(n => n[0]).join('') || profile.email[0].toUpperCase()}
           </AvatarFallback>
         </Avatar>
@@ -213,7 +213,7 @@ export default function UserProfile() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-5 bg-accent">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="identity">Identity</TabsTrigger>
           <TabsTrigger value="compliance">Compliance</TabsTrigger>

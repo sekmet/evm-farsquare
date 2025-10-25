@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, Shield, Users, FileText, ArrowRight } from "lucide-react";
+import { CheckCircle, Clock, Shield, Users, FileText, ArrowRight, Wallet } from "lucide-react";
 import { onboardingStartSchema, OnboardingStartData } from "@/schemas/onboarding-schemas";
 import { useWallet } from "@/contexts/wallet-context";
 import { useOnboardingStart } from "@/hooks/use-onboarding-start";
@@ -111,6 +111,37 @@ export default function OnboardingStart() {
 
   if (!userProfile?.profile?.evm_address) {
     return (
+       <div className="container mx-auto py-8 px-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 px-6">
+            <Wallet className="h-16 w-16 text-gray-400 mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Connect Your Wallet</h3>
+            <p className="text-gray-600 text-center mb-6 max-w-md">
+              To view your wallet balances and transaction history, you need to connect your EVM-compatible wallet.
+              This will allow you to interact with ERC-3643 compliant tokens and view your portfolio.
+            </p>
+            <div className="space-y-4 w-full max-w-sm">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Supported Networks:</h4>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline" className="bg-white">Optimism Sepolia</Badge>
+                  <Badge variant="outline" className="bg-white">Base Sepolia</Badge>
+                  <Badge variant="outline" className="bg-white">Sepolia</Badge>
+                </div>
+              </div>
+              <Button className="w-full" size="lg">
+                <Wallet className="h-4 w-4 mr-2" />
+                Connect Wallet
+              </Button>
+              <p className="text-xs text-gray-500 text-center">
+                By connecting your wallet, you agree to our terms of service and privacy policy.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>     
+    )
+    /*return (
     <div className="bg-muted flex flex-col items-center justify-center">
       <div className="w-full">
         <div className="container mx-auto p-6">
@@ -138,7 +169,6 @@ export default function OnboardingStart() {
 
               <CardContent>
 
-              {/* Wallet Connection - only show if user has no evm_address in profile */}
               {!userProfile?.profile?.evm_address && user?.id && (
                 <div className="space-y-4">
                   <WalletConnectField
@@ -159,7 +189,7 @@ export default function OnboardingStart() {
         </div>
       </div>
     </div>
-    );
+    );*/
   }
 
 

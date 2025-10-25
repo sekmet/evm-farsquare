@@ -24,86 +24,58 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { createSecureApiClientFromEnv } from "@/lib/secure-api";
+import { formatAddress, formatDate, getNetworkName, getNetworkColor } from "@/lib/utils";
+import { 
+  type EVMNetwork, 
+  type WalletInfo, 
+  type TokenBalance, 
+  type TransactionInfo ,
+  type WalletActivityResponse,
+  type WalletBalancesResponse,
+  type WalletTransactionsResponse,
+  type WalletInfoResponse,
+  type WalletSummary,
+} from "@/types/wallet"
 import { type Address, type Hex, formatEther } from "viem";
 import { useAccount } from "wagmi";
 
-// Wallet balance interface
-interface TokenBalance {
-  address: Address;
-  symbol: string;
-  name: string;
-  decimals: number;
-  balance: bigint;
-  formattedBalance: string;
-  network: EVMNetwork;
-  isNative?: boolean;
-}
 
-// Transaction interface
-interface TransactionInfo {
-  hash: Hex;
-  blockNumber: bigint;
-  blockHash: Hex;
-  transactionIndex: number;
-  from: Address;
-  to: Address | null;
-  value: bigint;
-  gasPrice: bigint;
-  gasLimit: bigint;
-  gasUsed?: bigint;
-  status?: 'success' | 'failed' | 'pending';
-  timestamp?: Date;
-  network: EVMNetwork;
-  logs?: any[];
-  input?: Hex;
-  nonce: number;
-}
+export const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'success':
+      case 'approved':
+      case 'active':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'pending':
+      case 'in_progress':
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'failed':
+      case 'rejected':
+      case 'suspended':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-gray-500" />;
+    }
+};
 
-// Wallet summary interface
-interface WalletSummary {
-  address: Address;
-  totalBalanceUSD: number;
-  networks: EVMNetwork[];
-  lastActivity: Date | null;
-  totalTransactions: number;
-}
+export const getStatusBadge = (status: string) => {
+    const variants = {
+      success: 'default',
+      approved: 'default',
+      active: 'default',
+      pending: 'secondary',
+      in_progress: 'secondary',
+      failed: 'destructive',
+      rejected: 'destructive',
+      suspended: 'destructive',
+    } as const;
 
-// Complete wallet information
-interface WalletInfo {
-  address: Address;
-  summary: WalletSummary;
-  balances: TokenBalance[];
-  recentTransactions: TransactionInfo[];
-  supportedNetworks: EVMNetwork[];
-}
-
-// Network type for wallet operations
-type EVMNetwork = 'optimism-testnet' | 'testnet' | 'sepolia';
-
-// API response interfaces
-interface WalletBalancesResponse {
-  success: boolean;
-  data: TokenBalance[];
-  error?: string;
-}
-
-interface WalletTransactionsResponse {
-  success: boolean;
-  data: TransactionInfo[];
-  error?: string;
-}
-
-interface WalletInfoResponse {
-  success: boolean;
-  data: WalletInfo;
-  error?: string;
-}
-
-interface WalletActivityResponse {
-  success: boolean;
-  data: { hasActivity: boolean };
-  error?: string;
-}
+    return (
+      <Badge variant={variants[status as keyof typeof variants] || 'outline'}>
+        {status.replace('_', ' ')}
+      </Badge>
+    );
+};
 
 export default function UserWallet() {
   const { user } = useAuth();
@@ -137,29 +109,34 @@ export default function UserWallet() {
         apiClient.makeRequest<WalletTransactionsResponse>(`/api/wallet/transactions/${userAddress}`)
       ]);
 
+      let balances: TokenBalance[] = [];
+      let transactions: TransactionInfo[] = [];
+
       if (balancesResult.success && balancesResult.data) {
-        setBalances(balancesResult.data);
+        balances = balancesResult.data as unknown as TokenBalance[];
       }
 
       if (transactionsResult.success && transactionsResult.data) {
-        setTransactions(transactionsResult.data);
+        transactions = transactionsResult.data as unknown as TransactionInfo[];
       }
+
+      setBalances(balances);
+      setTransactions(transactions);
 
       // Calculate wallet summary
       const summary: WalletSummary = {
         address: userAddress,
         totalBalanceUSD: 0, // Would need price oracle integration
         networks: ['optimism-testnet', 'testnet', 'sepolia'],
-        lastActivity: transactionsResult.data && transactionsResult.data.length > 0 ?
-          transactionsResult.data[0].timestamp || null : null,
-        totalTransactions: transactionsResult.data ? transactionsResult.data.length : 0,
+        lastActivity: (transactions.length > 0) ? transactions[0].timestamp || null : null,
+        totalTransactions: transactions.length,
       };
 
       const walletData: WalletInfo = {
         address: userAddress,
         summary,
-        balances: (balancesResult.success && balancesResult.data) ? balancesResult.data as unknown as TokenBalance[] : [],
-        recentTransactions: (transactionsResult.success && transactionsResult.data) ? transactionsResult.data as unknown as TransactionInfo[] : [],
+        balances,
+        recentTransactions: transactions,
         supportedNetworks: ['optimism-testnet', 'testnet', 'sepolia'],
       };
 
@@ -180,7 +157,7 @@ export default function UserWallet() {
       const activityResult = await apiClient.makeRequest<WalletActivityResponse>(`/api/wallet/activity/${userAddress}`);
 
       if (activityResult.success && activityResult.data && typeof activityResult.data === 'object' && 'hasActivity' in activityResult.data) {
-        setHasWalletActivity(activityResult.data.hasActivity);
+        setHasWalletActivity(activityResult.data.hasActivity as any);
       }
     } catch (err) {
       console.error('Failed to check wallet activity:', err);
@@ -188,69 +165,7 @@ export default function UserWallet() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'success':
-      case 'approved':
-      case 'active':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'pending':
-      case 'in_progress':
-        return <Clock className="h-4 w-4 text-yellow-500" />;
-      case 'failed':
-      case 'rejected':
-      case 'suspended':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-gray-500" />;
-    }
-  };
 
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      success: 'default',
-      approved: 'default',
-      active: 'default',
-      pending: 'secondary',
-      in_progress: 'secondary',
-      failed: 'destructive',
-      rejected: 'destructive',
-      suspended: 'destructive',
-    } as const;
-
-    return (
-      <Badge variant={variants[status as keyof typeof variants] || 'outline'}>
-        {status.replace('_', ' ')}
-      </Badge>
-    );
-  };
-
-  const formatAddress = (addr: string) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
-
-  const formatDate = (date?: Date) => {
-    if (!date) return 'Unknown';
-    return new Date(date).toLocaleDateString();
-  };
-
-  const getNetworkName = (network: EVMNetwork) => {
-    const names = {
-      'optimism-testnet': 'Optimism Sepolia',
-      'testnet': 'Base Sepolia',
-      'sepolia': 'Sepolia'
-    };
-    return names[network] || network;
-  };
-
-  const getNetworkColor = (network: EVMNetwork) => {
-    const colors = {
-      'optimism-testnet': 'bg-red-100 text-red-800',
-      'testnet': 'bg-blue-100 text-blue-800',
-      'sepolia': 'bg-gray-100 text-gray-800'
-    };
-    return colors[network] || 'bg-gray-100 text-gray-800';
-  };
 
   // If user doesn't have a wallet connected, show connection prompt
   if (!userAddress) {
@@ -318,14 +233,14 @@ export default function UserWallet() {
     <div className="container mx-auto py-8 space-y-6 px-6">
       {/* Header Section */}
       <div className="flex items-center space-x-4">
-        <Avatar className="h-16 w-16">
-          <AvatarFallback className="text-lg">
-            <WalletIcon className="h-8 w-8" />
+        <Avatar className="h-24 w-24">
+          <AvatarFallback className="text-lg bg-accent">
+            <WalletIcon className="h-12 w-12" />
           </AvatarFallback>
         </Avatar>
         <div>
           <h1 className="text-3xl font-bold">Wallet Portfolio</h1>
-          <p className="text-gray-600 font-mono text-sm">{formatAddress(walletInfo.address)}</p>
+          <p className="text-gray-600 font-mono text-sm">{walletInfo.address}</p>
           <div className="flex items-center space-x-2 mt-2">
             <Badge variant="outline">ERC-3643 Compliant</Badge>
             <Badge variant="secondary">{walletInfo.supportedNetworks.length} Networks</Badge>
@@ -335,7 +250,7 @@ export default function UserWallet() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4 bg-accent">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="balances">Balances</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
