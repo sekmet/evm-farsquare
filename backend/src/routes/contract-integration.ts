@@ -688,6 +688,195 @@ export function registerContractIntegrationEndpoints(
   });
 
   /**
+   * Deploy ERC-3643 token for a property
+   * POST /api/properties/deploy-token
+   */
+  app.post("/api/properties/deploy-token", async (c) => {
+    try {
+      const { tokenData, propertyId, userId } = await c.req.json();
+
+      // Validate required parameters
+      if (!tokenData || !propertyId || !userId) {
+        return c.json({ success: false, error: "Missing required parameters" }, 400);
+      }
+
+      // Validate EVM addresses
+      if (!isValidEvmAddress(userId)) {
+        return c.json({ success: false, error: "Invalid user address format" }, 400);
+      }
+
+      // Validate token data
+      if (!tokenData.name || !tokenData.symbol) {
+        return c.json({ success: false, error: "Token name and symbol are required" }, 400);
+      }
+
+      if (!tokenData.totalSupply || tokenData.totalSupply <= 0) {
+        return c.json({ success: false, error: "Valid total supply is required" }, 400);
+      }
+
+      // Check if property exists and user has ownership
+      const { getPool } = await import('../lib/database');
+      const pool = getPool();
+
+      // Check property ownership using raw SQL
+      const ownershipQuery = `
+        SELECT po.* FROM public.property_ownership po
+        WHERE po.property_id = $1 AND po.user_id = $2 AND po.status = 'active'
+        LIMIT 1
+      `;
+      const ownershipResult = await pool.query(ownershipQuery, [propertyId, userId]);
+
+      if (ownershipResult.rows.length === 0) {
+        return c.json({ success: false, error: "User does not own this property" }, 403);
+      }
+
+      if (!services.propertyTokenFactory) {
+        return c.json({ error: "Property token factory service not initialized" }, 500);
+      }
+
+      // Generate salt for CREATE2 deployment
+      const salt = crypto.randomUUID();
+
+      // Deploy token suite following DeployCompleteTREX pattern
+      const result = await services.propertyTokenFactory.deployPropertyTokenSuite(
+        {
+          salt,
+          name: tokenData.name.trim(),
+          symbol: tokenData.symbol.trim().toUpperCase(),
+          initialSupply: BigInt(tokenData.totalSupply),
+          claimTopics: tokenData.claimTopics || [1, 2, 7], // KYC, AML, Country
+          trustedIssuers: tokenData.trustedIssuers || [],
+          complianceModules: tokenData.complianceModules || ['CountryRestrictions', 'MaxBalance', 'MaxHolders'],
+        },
+        userId as Address
+      );
+
+      if (!result.success) {
+        return c.json({ success: false, error: result.error }, 400);
+      }
+
+      // Store deployment information in database
+      const deploymentData = result.data;
+      if (deploymentData) {
+        // Insert token record
+        const tokenQuery = `
+          INSERT INTO public.tokens
+          (contract_address, name, symbol, decimals, total_supply, owner_address, deployed_at, deployed_tx_hash)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT (contract_address)
+          DO UPDATE SET
+            name = EXCLUDED.name,
+            symbol = EXCLUDED.symbol,
+            decimals = EXCLUDED.decimals,
+            total_supply = EXCLUDED.total_supply,
+            deployed_at = EXCLUDED.deployed_at,
+            deployed_tx_hash = EXCLUDED.deployed_tx_hash,
+            updated_at = NOW()
+          RETURNING *
+        `;
+        await pool.query(tokenQuery, [
+          deploymentData.tokenAddress,
+          tokenData.name.trim(),
+          tokenData.symbol.trim().toUpperCase(),
+          tokenData.decimals || 18,
+          tokenData.totalSupply.toString(),
+          userId,
+          new Date(),
+          deploymentData.txHash,
+        ]);
+
+        // Insert suite record
+        const suiteQuery = `
+          INSERT INTO public.suites
+          (salt, token_id, identity_factory_contract, authority_contract, identity_registry_contract, identity_storage_contract, claim_topics_registry_contract, trusted_issuers_registry_contract, compliance_contract, deployed_by, deployed_tx_hash, token_name, token_symbol, initial_supply)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          ON CONFLICT (salt)
+          DO UPDATE SET
+            token_id = EXCLUDED.token_id,
+            deployed_tx_hash = EXCLUDED.deployed_tx_hash,
+            deployed_at = NOW()
+        `;
+        await pool.query(suiteQuery, [
+          salt,
+          null, // token_id will be set after insertion
+          deploymentData.identityRegistryAddress, // Using available addresses
+          deploymentData.identityRegistryAddress, // Using available addresses
+          deploymentData.identityRegistryAddress,
+          deploymentData.identityRegistryStorageAddress,
+          deploymentData.claimTopicsRegistryAddress,
+          deploymentData.trustedIssuersRegistryAddress,
+          deploymentData.complianceAddress,
+          userId,
+          deploymentData.txHash,
+          tokenData.name.trim(),
+          tokenData.symbol.trim().toUpperCase(),
+          tokenData.totalSupply.toString(),
+        ]);
+
+        // Link property to token
+        const propertyTokenQuery = `
+          INSERT INTO public.property_tokens
+          (property_id, token_contract, token_role, created_by)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (property_id, token_contract)
+          DO NOTHING
+        `;
+        await pool.query(propertyTokenQuery, [
+          propertyId,
+          deploymentData.tokenAddress,
+          'primary',
+          userId,
+        ]);
+
+        // Log deployment event
+        const auditQuery = `
+          INSERT INTO public.audit_log
+          (event_type, contract_address, user_address, event_data, metadata)
+          VALUES ($1, $2, $3, $4, $5)
+        `;
+        await pool.query(auditQuery, [
+          'token_deployment',
+          deploymentData.tokenAddress,
+          userId,
+          {
+            propertyId,
+            tokenName: tokenData.name,
+            tokenSymbol: tokenData.symbol,
+            totalSupply: tokenData.totalSupply,
+            complianceModules: tokenData.complianceModules,
+          },
+          {
+            deploymentType: 'erc3643',
+            salt,
+            suiteAddresses: deploymentData,
+          },
+        ]);
+      }
+
+      return c.json({
+        success: true,
+        data: {
+          tokenAddress: deploymentData?.tokenAddress,
+          txHash: deploymentData?.txHash,
+          suiteAddresses: deploymentData,
+          salt,
+        }
+      });
+    } catch (error) {
+      console.error("Token deployment error:", error);
+      return c.json(
+        {
+          success: false,
+          error: "Failed to deploy token",
+          details: error instanceof Error ? error.message : "Unknown error",
+        },
+        500
+      );
+    }
+  });
+
+
+    /**
    * Check transfer eligibility using ERC-3643 compliance.canTransfer method
    * POST /api/trex/can-transfer
    */
