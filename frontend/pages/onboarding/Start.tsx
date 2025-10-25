@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { OnboardingProgress } from "@/components/onboarding/onboarding-progress";
+import { WalletConnectField } from "@/components/onboarding/wallet-connect-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,13 +17,20 @@ import { onboardingStartSchema, OnboardingStartData } from "@/schemas/onboarding
 import { useWallet } from "@/contexts/wallet-context";
 import { useOnboardingStart } from "@/hooks/use-onboarding-start";
 import { useOnboardingStatus } from "@/hooks/use-onboarding-status";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfile } from "@/hooks/use-user-profile";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import clsx from "clsx";
 
 export default function OnboardingStart() {
   const { state } = useWallet();
   const navigate = useNavigate();
   const { startOnboarding } = useOnboardingStart();
+  const { user } = useAuth();
+
+  // Fetch user profile to check for evm_address
+  const { data: userProfile, isLoading: profileLoading } = useUserProfile(user?.id);
 
   // Check existing onboarding status
   const { data: onboardingData, isLoading: statusLoading } = useOnboardingStatus(state.address || '');
@@ -50,7 +58,7 @@ export default function OnboardingStart() {
     defaultValues: {
       userType: undefined,
       jurisdiction: '',
-      email: '',
+      email: user?.email || userProfile?.profile?.email || '',
       consents: {
         privacy: false,
         terms: false,
@@ -84,7 +92,7 @@ export default function OnboardingStart() {
 
 
   
-  if (statusLoading) {
+  if (statusLoading || profileLoading) {
     return (
     <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm md:max-w-4xl">
@@ -100,8 +108,63 @@ export default function OnboardingStart() {
     </div>
     );
   }
+
+  if (!userProfile?.profile?.evm_address) {
+    return (
+    <div className="bg-muted flex flex-col items-center justify-center">
+      <div className="w-full">
+        <div className="container mx-auto p-6">
+          <div className="flex items-center justify-center">
+            <div className="text-left">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold text-gray-900">
+                  To continue, please connect your wallet
+                </CardTitle>
+                <CardDescription className="text-lg">
+                  Connect your wallet to start onboarding
+                </CardDescription>
+                <div className="flex items-center gap-2 mt-4">
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    1 minute
+                  </Badge>
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <Shield className="w-4 h-4" />
+                    Secure & Compliant
+                  </Badge>
+                </div>
+              </CardHeader>
+
+              <CardContent>
+
+              {/* Wallet Connection - only show if user has no evm_address in profile */}
+              {!userProfile?.profile?.evm_address && user?.id && (
+                <div className="space-y-4">
+                  <WalletConnectField
+                    userId={user.id}
+                    onWalletConnected={(address) => {
+                      toast({
+                        title: "Wallet Connected",
+                        description: `Wallet ${address.slice(0, 6)}...${address.slice(-4)} linked successfully.`,
+                      });
+                    }}
+                  />
+                </div>
+              )}
+              </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    );
+  }
+
+
   return (
-    <div className="bg-muted flex min-h-svh flex-col items-center justify-center">
+    <div className="flex flex-col items-center justify-center">
       <div className="w-full">
       <div className="container mx-auto mt-0 p-6">
         {/* Progress Indicator */}
@@ -135,6 +198,7 @@ export default function OnboardingStart() {
               <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+
                     {/* User Type Selection */}
                     <FormField
                       control={form.control}

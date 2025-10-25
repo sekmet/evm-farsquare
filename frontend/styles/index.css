@@ -23,7 +23,7 @@
   --destructive: oklch(0.6290 0.1902 23.0704);
   --destructive-foreground: oklch(1.0000 0 0);
   --border: oklch(0.9300 0.0094 286.2156);
-  --input: oklch(0.9401 0 0);
+  --input: oklch(86.157% 0.00419 285.969);
   --ring: oklch(0 0 0);
   --chart-1: oklch(0.7459 0.1483 156.4499);
   --chart-2: oklch(0.5393 0.2713 286.7462);
@@ -261,7 +261,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/80;
+    @apply border-border outline-ring/30;
   }
   body {
     @apply bg-background text-foreground;

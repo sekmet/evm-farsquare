@@ -4,6 +4,9 @@ import {
   IconLogout,
   IconNotification,
   IconUserCircle,
+  IconShieldCheck,
+  IconSettings,
+  IconWallet,
 } from "@tabler/icons-react"
 
 import {
@@ -26,7 +29,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDisconnect } from "wagmi";
 
@@ -42,13 +45,11 @@ export function NavUser({
   const { isMobile } = useSidebar()
   const { logout } = useAuth();
   const { disconnect } = useDisconnect();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     disconnect();
-    localStorage.removeItem("wagmi.injected.disconnected"); 
-    localStorage.removeItem("wagmi.injected.connected");
-    localStorage.removeItem("wagmi.store");
   };
 
   return (
@@ -95,18 +96,27 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/profile")}>
                 <IconUserCircle />
-                Account
+                Profile
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconCreditCard />
-                Billing
+              <DropdownMenuItem onClick={() => navigate("/wallet")}>
+                <IconWallet />
+                Wallet
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/notifications")}>
                 <IconNotification />
                 Notifications
               </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings")}>
+              <IconSettings />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate("/compliance")}>
+              <IconShieldCheck />
+              Compliance
+            </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => { handleLogout(); }}>
