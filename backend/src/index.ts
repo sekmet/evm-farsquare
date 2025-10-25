@@ -2323,7 +2323,7 @@ app.get("/api/users/onboarding-status/:address", async (c) => {
 // PROPERTY MANAGEMENT API ENDPOINTS
 // ============================================================================
 
-// Create property
+// Create new property (with temp image migration)
 app.post("/api/properties/manage/create", async (c) => {
   try {
     const data = await c.req.json();
@@ -2332,13 +2332,77 @@ app.post("/api/properties/manage/create", async (c) => {
       return c.json({ error: "Property management service not initialized" }, 500);
     }
 
-    const result = await propertyManagementService.createProperty(data);
-
-    if (!result.success) {
-      return c.json(result, 400);
+    if (!uploadImageService) {
+      return c.json({ error: "Upload image service not initialized" }, 500);
     }
 
-    return c.json(result, 201);
+    // Validate required fields
+    if (!data.name || !data.description || !data.location || !data.owner_address) {
+      return c.json({
+        success: false,
+        error: "Missing required fields: name, description, location, owner_address"
+      }, 400);
+    }
+
+    // Create property data in the format expected by the service
+    const propertyData = {
+      contractAddress: data.contract_address || null,
+      tokenSymbol: data.token_symbol || data.name.substring(0, 6).toUpperCase(),
+      name: data.name,
+      description: data.description,
+      location: data.location,
+      propertyType: data.property_type || 'residential',
+      totalTokens: BigInt(data.total_tokens || 1000000),
+      availableTokens: BigInt(data.available_tokens || data.total_tokens || 1000000),
+      tokenPrice: data.token_price?.toString() || '1.00',
+      totalValue: data.total_value?.toString() || (data.total_tokens * data.token_price)?.toString(),
+      annualYield: data.annual_yield?.toString() || '6.5',
+      riskLevel: data.risk_level || 'medium',
+      features: data.features || [],
+      images: data.images || [],
+      fundingProgress: data.funding_progress || 0,
+      minimumInvestment: data.minimum_investment?.toString() || '100',
+      ownerAddress: data.owner_address,
+      createdBy: data.owner_address,
+    };
+
+    // Create the property
+    const result = await propertyManagementService.createProperty(propertyData);
+
+    if (!result.success) {
+      return c.json({
+        success: false,
+        error: result.error
+      }, 400);
+    }
+
+    const propertyId = result.data!.id;
+
+    // Handle temp image migration if tempImageIds are provided
+    if (data.tempImageIds && Array.isArray(data.tempImageIds) && data.tempImageIds.length > 0) {
+      console.log(`Migrating ${data.tempImageIds.length} temp images for property ${propertyId}`);
+      const migrationResult = await uploadImageService.moveTemporaryImagesToProperty(
+        data.tempImageIds,
+        propertyId,
+        data.owner_address
+      );
+
+      if (!migrationResult) {
+        console.warn(`Failed to migrate temp images for property ${propertyId}, but property was created successfully`);
+        // Don't fail the whole operation, just log the warning
+      } else {
+        console.log(`Successfully migrated ${data.tempImageIds.length} temp images for property ${propertyId}`);
+      }
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        id: propertyId,
+        message: "Property created successfully"
+      }
+    });
+
   } catch (error) {
     console.error("Create property error:", error);
     return c.json({
@@ -2673,29 +2737,141 @@ app.delete("/api/properties/images/:imageId", async (c) => {
   }
 });
 
-// Upload property image
-app.post("/api/properties/manage/:id/images", async (c) => {
+// Serve temporary uploaded images (for property creation previews)
+app.get("/tmp/property-images/:filename", async (c) => {
   try {
-    const propertyId = c.req.param("id");
+    const filename = c.req.param("filename");
+
+    if (!filename) {
+      return c.json({ error: "Filename is required" }, 400);
+    }
+
+    // Validate filename format (should start with temp- and have extension)
+    if (!filename.startsWith('temp-') || !filename.includes('.')) {
+      return c.json({ error: "Invalid filename format" }, 400);
+    }
+
+    const filePath = `/tmp/property-images/${filename}`;
+
+    // Check if file exists
+    try {
+      await Bun.file(filePath).stat();
+    } catch {
+      return c.json({ error: "File not found" }, 404);
+    }
+
+    // Serve the file
+    const file = Bun.file(filePath);
+    const arrayBuffer = await file.arrayBuffer();
+
+    // Determine content type based on file extension
+    let contentType = 'application/octet-stream';
+    if (filename.toLowerCase().endsWith('.jpg') || filename.toLowerCase().endsWith('.jpeg')) {
+      contentType = 'image/jpeg';
+    } else if (filename.toLowerCase().endsWith('.png')) {
+      contentType = 'image/png';
+    } else if (filename.toLowerCase().endsWith('.webp')) {
+      contentType = 'image/webp';
+    } else if (filename.toLowerCase().endsWith('.gif')) {
+      contentType = 'image/gif';
+    }
+
+    return new Response(arrayBuffer, {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
+      },
+    });
+  } catch (error) {
+    console.error("Serve temp image error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to serve image",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
+// Upload property image (temporary storage)
+app.post("/api/properties/images", async (c) => {
+  try {
+    // Check if this is a temporary upload (for property creation)
+    const isTemp = c.req.query("temp") === "true";
 
     if (!uploadImageService) {
       return c.json({ error: "Upload service not initialized" }, 500);
     }
 
+    // Handle file upload
     const formData = await c.req.formData();
     const file = formData.get('image') as File;
+    const userAddress = formData.get('userAddress') as string;
 
     if (!file) {
       return c.json({ error: "No image file provided" }, 400);
     }
 
-    const result = await uploadImageService.uploadPropertyImage(propertyId, file, file.name);
+    if (!userAddress) {
+      return c.json({ error: "User address is required" }, 400);
+    }
 
-    return c.json({
-      success: true,
-      data: result,
-      message: "Image uploaded successfully"
-    });
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      return c.json({ error: "File size exceeds 5MB limit" }, 400);
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      return c.json({ error: "Invalid file type. Only JPEG, PNG, and WebP images are allowed" }, 400);
+    }
+
+    if (isTemp) {
+      // Upload to temporary storage (/tmp)
+      const tempResult = await uploadImageService.uploadTemporaryImage(file, userAddress);
+
+      if (!tempResult.success) {
+        return c.json({ error: tempResult.error }, 400);
+      }
+
+      return c.json({
+        success: true,
+        data: {
+          fileUrl: tempResult.fileUrl,
+          tempId: tempResult.tempId,
+          fileName: file.name,
+          fileSize: file.size,
+          uploadedAt: new Date().toISOString()
+        },
+        message: "Image uploaded to temporary storage successfully"
+      });
+    } else {
+      // Normal property image upload (requires propertyId)
+      const propertyId = formData.get('propertyId') as string;
+
+      if (!propertyId) {
+        return c.json({ error: "Property ID is required for permanent uploads" }, 400);
+      }
+
+      // Validate property ID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(propertyId)) {
+        return c.json({ error: "Invalid property ID format" }, 400);
+      }
+
+      const result = await uploadImageService.uploadPropertyImage(propertyId, file, userAddress);
+
+      if (!result.success) {
+        return c.json({ error: result.error }, 400);
+      }
+
+      return c.json({
+        success: true,
+        data: result,
+        message: "Image uploaded successfully"
+      });
+    }
   } catch (error) {
     console.error("Upload property image error:", error);
     return c.json({

@@ -2,6 +2,13 @@ import { mkdir, writeFile, unlink, readdir } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { Pool } from 'pg';
 
+export interface TempUploadResult {
+  success: boolean;
+  fileUrl?: string;
+  tempId?: string;
+  error?: string;
+}
+
 export interface UploadResult {
   success: boolean;
   fileUrl?: string;
@@ -106,6 +113,115 @@ export class UploadImageService {
         success: false,
         error: 'Failed to upload image'
       };
+    }
+  }
+
+  /**
+   * Upload an image to temporary storage (for property creation)
+   */
+  async uploadTemporaryImage(
+    file: File,
+    userAddress: string
+  ): Promise<TempUploadResult> {
+    try {
+      // Create temp directory if it doesn't exist
+      const tempDir = '/tmp/property-images';
+      await mkdir(tempDir, { recursive: true });
+
+      // Generate unique filename and temp ID
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(2, 15);
+      const tempId = `temp-${timestamp}-${randomId}`;
+      const extension = extname(file.name).toLowerCase();
+      const fileName = `${tempId}${extension}`;
+
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        return {
+          success: false,
+          error: 'Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.'
+        };
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        return {
+          success: false,
+          error: 'File size too large. Maximum size is 5MB.'
+        };
+      }
+
+      // Save file to temp location
+      const filePath = join(tempDir, fileName);
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      await writeFile(filePath, buffer);
+
+      // Return temp file info
+      const fileUrl = `/tmp/property-images/${fileName}`;
+
+      return {
+        success: true,
+        fileUrl,
+        tempId
+      };
+    } catch (error) {
+      console.error('Temporary upload error:', error);
+      return {
+        success: false,
+        error: 'Failed to upload image temporarily'
+      };
+    }
+  }
+
+  /**
+   * Move temporary images to permanent storage when property is created
+   */
+  async moveTemporaryImagesToProperty(
+    tempIds: string[],
+    propertyId: string,
+    userAddress: string
+  ): Promise<boolean> {
+    try {
+      const tempDir = '/tmp/property-images';
+      const propertyDir = join(this.uploadDir, 'properties', propertyId);
+      await mkdir(propertyDir, { recursive: true });
+
+      for (const tempId of tempIds) {
+        // Find temp file
+        const tempFiles = await readdir(tempDir).catch(() => []);
+        const tempFileName = tempFiles.find(file => file.startsWith(tempId));
+
+        if (!tempFileName) {
+          console.warn(`Temp file not found for tempId: ${tempId}`);
+          continue;
+        }
+
+        const tempFilePath = join(tempDir, tempFileName);
+        const newFileName = tempFileName.replace(`temp-`, `${propertyId}-`);
+        const newFilePath = join(propertyDir, newFileName);
+
+        // Move file
+        const fs = await import('fs/promises');
+        await fs.rename(tempFilePath, newFilePath);
+
+        // Save to database
+        const fileUrl = `/uploads/properties/${propertyId}/${newFileName}`;
+        const imageId = `${propertyId}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+        await this.pool.query(
+          `INSERT INTO public.property_images (id, property_id, file_name, original_name, mime_type, size, url, uploaded_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+          [imageId, propertyId, newFileName, tempFileName, 'image/jpeg', 0, fileUrl] // We don't have original metadata, use defaults
+        );
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to move temporary images:', error);
+      return false;
     }
   }
 

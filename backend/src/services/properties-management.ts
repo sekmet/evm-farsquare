@@ -62,7 +62,7 @@ export class PropertyManagementService {
    */
   async createProperty(data: PropertyCreateData): Promise<DbResult<{ id: string }>> {
     const client = await this.pool.connect();
-    
+    console.log({data})
     try {
       await client.query('BEGIN');
 
@@ -72,22 +72,22 @@ export class PropertyManagementService {
           contract_address, token_symbol, name, description, location,
           property_type, total_tokens, available_tokens, token_price,
           total_value, annual_yield, risk_level, features, images,
-          funding_progress, minimum_investment, status
+          funding_progress, minimum_investment, created_by, status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'active')
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'active')
         RETURNING id
       `;
 
       const propertyValues = [
-        data.contractAddress,
-        data.tokenSymbol,
-        data.name,
-        data.description,
+        data.contractAddress || '0x0000000000000000000000000000000000000000',
+        data.tokenSymbol || 'TFSQ',
+        data.name || 'FarSquare Property Token',
+        data.description || 'FarSquare Property Token',
         data.location,
         data.propertyType,
-        data.totalTokens.toString(),
-        data.availableTokens.toString(),
-        data.tokenPrice,
+        data.totalTokens && data.totalTokens.toString() || '1',
+        data.availableTokens && data.availableTokens.toString() || '1',
+        data.tokenPrice || '1',
         data.totalValue,
         data.annualYield,
         data.riskLevel,
@@ -95,6 +95,7 @@ export class PropertyManagementService {
         data.images,
         data.fundingProgress,
         data.minimumInvestment,
+        data.createdBy,
       ];
 
       const propertyResult = await client.query(propertyQuery, propertyValues);
