@@ -147,6 +147,126 @@ export class SecureApiClient {
       body: JSON.stringify({ payload, signWith }),
     });
   }
+
+  /**
+   * Create property
+   */
+  async createProperty(propertyData: any): Promise<SecureApiResponse> {
+    return this.makeRequestPrivate("/api/properties/manage/create", {
+      method: "POST",
+      body: JSON.stringify(propertyData),
+    });
+  }
+
+  /**
+   * Get properties
+   */
+  async getProperties(filters?: any): Promise<SecureApiResponse> {
+    const queryString = filters ? `?${new URLSearchParams(filters)}` : '';
+    return this.makeRequestPrivate(`/api/properties${queryString}`);
+  }
+
+  /**
+   * Get property by ID
+   */
+  async getProperty(propertyId: string): Promise<SecureApiResponse> {
+    return this.makeRequestPrivate(`/api/properties/${propertyId}`);
+  }
+
+  /**
+   * Update property
+   */
+  async updateProperty(propertyId: string, userId: string, updates: any): Promise<SecureApiResponse> {
+    return this.makeRequestPrivate(`/api/properties/manage/${propertyId}`, {
+      method: "PUT",
+      body: JSON.stringify({ userId, ...updates }),
+    });
+  }
+
+  /**
+   * Upload property image (temporary storage)
+   */
+  async uploadPropertyImageTemp(file: File, userAddress: string): Promise<SecureApiResponse> {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('userAddress', userAddress);
+
+    const url = `${this.baseUrl}/api/properties/images?temp=true`;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+        // Don't set Content-Type header - let browser set it with boundary
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error(`Image upload failed`, error);
+      return {
+        success: false,
+        error: {
+          code: "UPLOAD_ERROR",
+          message: "Failed to upload image",
+          details: error instanceof Error ? error.message : "Unknown error"
+        },
+      };
+    }
+  }
+
+  /**
+   * Upload property image (permanent storage)
+   */
+  async uploadPropertyImage(propertyId: string, file: File, userAddress: string): Promise<SecureApiResponse> {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('userAddress', userAddress);
+
+    const url = `${this.baseUrl}/api/properties/${propertyId}/images`;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+        // Don't set Content-Type header - let browser set it with boundary
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error(`Image upload failed: ${propertyId}`, error);
+      return {
+        success: false,
+        error: {
+          code: "UPLOAD_ERROR",
+          message: "Failed to upload image",
+          details: error instanceof Error ? error.message : "Unknown error"
+        },
+      };
+    }
+  }
+
 }
 
 // Factory function to create secure API client

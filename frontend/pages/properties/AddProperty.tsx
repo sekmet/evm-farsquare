@@ -1,30 +1,32 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { toast } from "@/hooks/use-toast";
-import { useWallet } from "@/contexts/wallet-context";
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useWallet } from '@/contexts/wallet-context';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import {
-  ArrowLeft,
-  Upload,
-  X,
-  Plus,
   Home,
-  Building,
-  Factory,
   MapPin,
   DollarSign,
-  TrendingUp,
-  AlertCircle,
   CheckCircle,
-  Loader2
-} from "lucide-react";
+  Upload,
+  Plus,
+  X,
+  ArrowLeft,
+  Factory,
+  Building,
+  Loader2,
+  TrendingUp,
+  AlertCircle
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { createSecureApiClientFromEnv } from '@/lib/secure-api';
 import {
   ChartContainer,
   ChartTooltip,
@@ -63,6 +65,7 @@ interface PropertyCreateData {
 
 const AddProperty = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { state } = useWallet();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<PropertyCreateData>({
@@ -83,6 +86,7 @@ const AddProperty = () => {
   const [newFeature, setNewFeature] = useState('');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState<Set<string>>(new Set());
+  const [tempImageIds, setTempImageIds] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
   const handleInputChange = (field: keyof PropertyCreateData, value: any) => {
@@ -169,27 +173,25 @@ const AddProperty = () => {
     setUploadingImages(prev => new Set(prev).add(tempId));
 
     try {
-      const formDataUpload = new FormData();
-      formDataUpload.append('image', file);
-      formDataUpload.append('userAddress', state.address);
+      // Use secure API client for file upload
+      const apiClient = createSecureApiClientFromEnv();
+      const result = await apiClient.uploadPropertyImageTemp(file, state.address);
 
-      const response = await fetch(`/api/properties/images?temp=true`, {
-        method: 'POST',
-        body: formDataUpload,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to upload image');
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to upload image');
       }
 
       // Add uploaded image to the list
-      setUploadedImages(prev => [...prev, data.data.fileUrl]);
+      setUploadedImages(prev => [...prev, result.data.fileUrl]);
       setFormData(prev => ({
         ...prev,
-        images: [...(prev.images || []), data.data.fileUrl]
+        images: [...(prev.images || []), result.data.fileUrl]
       }));
+
+      // Store tempId for later migration
+      if (result.data.tempId) {
+        setTempImageIds(prev => [...prev, result.data.tempId]);
+      }
 
       toast({
         title: "Image Uploaded",
@@ -315,9 +317,13 @@ const AddProperty = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    console.log('Submitting form data:', formData);
+
     // Advanced validation rules
     const validationErrors = validatePropertyForm(formData);
     
+    console.log(validationErrors)
+
     if (validationErrors.length > 0) {
       // Display all validation errors
       validationErrors.forEach(error => {
@@ -342,27 +348,22 @@ const AddProperty = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/properties/manage/create', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          owner_address: state.address,
-          contract_address: null, // Will be set after token deployment
-          token_symbol: formData.name.substring(0, 3).toUpperCase(),
-          total_value: calculateTotalValue(),
-          available_tokens: formData.total_tokens,
-          funding_progress: 0,
-          status: 'active'
-        }),
+      // Use secure API client for property creation
+      const apiClient = createSecureApiClientFromEnv();
+      const result = await apiClient.createProperty({
+        ...formData,
+        owner_address: state.address,
+        contract_address: null, // Will be set after token deployment
+        token_symbol: formData.name.substring(0, 3).toUpperCase(),
+        total_value: calculateTotalValue(),
+        available_tokens: formData.total_tokens,
+        funding_progress: 0,
+        status: 'active',
+        tempImageIds: tempImageIds // Include temp image IDs for migration
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to create property');
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to create property');
       }
 
       toast({
@@ -371,7 +372,7 @@ const AddProperty = () => {
       });
 
       // Navigate to the newly created property
-      navigate(`/properties/${data.data.id}`);
+      navigate(`/properties/${result.data.id}`);
 
     } catch (error) {
       console.error('Property creation error:', error);
@@ -577,6 +578,37 @@ const AddProperty = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Wallet Connection Status */}
+              {!state.address && (
+                <Card className="border-orange-200 bg-orange-50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <AlertCircle className="w-5 h-5 text-orange-600" />
+                        <div>
+                          <p className="font-medium text-orange-800">Wallet Connection Required</p>
+                          <p className="text-sm text-orange-700">
+                            You need to connect your wallet before creating a property.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-orange-300 text-orange-700 hover:bg-orange-100"
+                        onClick={() => {
+                          // This would typically open a wallet connection modal
+                          // For now, we'll just show an alert
+                          alert('Please connect your wallet using the wallet button in the header');
+                        }}
+                      >
+                        Connect Wallet
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Basic Information */}
               <Card>
                 <CardHeader>
@@ -856,9 +888,9 @@ const AddProperty = () => {
                       id="image-upload"
                     />
                     <label htmlFor="image-upload">
-                      <Button type="button" variant="outline" className="mt-4">
+                      <div className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 cursor-pointer">
                         Choose Files
-                      </Button>
+                      </div>
                     </label>
                   </div>
 
@@ -1145,11 +1177,16 @@ const AddProperty = () => {
                 <Button type="button" variant="outline" asChild>
                   <Link to="/properties">Cancel</Link>
                 </Button>
-                <Button type="submit" disabled={isLoading}>
+                <Button type="submit" disabled={isLoading || !state.address}>
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Creating Property...
+                    </>
+                  ) : !state.address ? (
+                    <>
+                      <AlertCircle className="w-4 h-4 mr-2" />
+                      Connect Wallet First
                     </>
                   ) : (
                     <>
