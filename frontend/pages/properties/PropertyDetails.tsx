@@ -220,20 +220,20 @@ const PropertyDetails = () => {
         <div className="container mx-auto px-6">
           {/* Header */}
           <div className="mb-6">
-            <Button variant="ghost" size="sm" asChild className="mb-4">
+            <Button variant="ghost" size="sm" asChild className="mb-4 text-secondary-foreground">
               <Link to="/properties">
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft className="w-5 h-5 mr-1" />
                 Back to Properties
               </Link>
             </Button>
 
             {/* Property Image Gallery */}
             {property.images && property.images.length > 0 ? (
-              <Card className="mb-8">
-                <CardContent className="p-0">
+              <Card className="mb-8 py-0">
+                <CardContent className="flex-shrink-0 p-1">
                   <div className="relative">
                     {/* Main Image */}
-                    <div className="aspect-video w-full overflow-hidden rounded-t-lg bg-muted">
+                    <div className="aspect-video w-full overflow-hidden rounded-lg bg-muted">
                       <img
                         src={property.images[selectedImage]}
                         alt={`${property.name} - Image ${selectedImage + 1}`}

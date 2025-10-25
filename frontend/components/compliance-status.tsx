@@ -416,7 +416,7 @@ export function ComplianceStatus({ propertyId, userId, className }: ComplianceSt
           </Badge>
         </CardTitle>
         <CardDescription>
-          ERC-3643 Level 3 security token compliance verification for tokenized real estate investment
+          ERC-3643 security token compliance verification for tokenized real estate investment
         </CardDescription>
       </CardHeader>
 
@@ -598,7 +598,7 @@ export function ComplianceStatus({ propertyId, userId, className }: ComplianceSt
         {/* Footer */}
         <div className="pt-4 border-t">
           <p className="text-xs text-muted-foreground text-center">
-            Compliance verification powered by ERC-3643 Level 3 permission registry.
+            Compliance verification powered by ERC-3643 permission registry.
             All investment eligibility is subject to change based on regulatory requirements.
           </p>
         </div>

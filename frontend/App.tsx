@@ -24,6 +24,7 @@ import Properties from "@/pages/properties/Properties";
 import PropertyDetails from "@/pages/properties/PropertyDetails";
 import AIInsights from "@/pages/ai-insights/AIInsights";
 import PropertiesOverview from "@/pages/properties/PropertiesOverview";
+import UserProfile from "@/pages/UserProfile";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ function AppRoutes() {
         <Route path="/signup" element={<SignUp />} />
         <Route path="/" element={<Dashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<UserProfile />} />
         <Route path="/onboarding/start" element={<OnboardingStart />} />
         <Route path="/onboarding/kyc/:sessionId" element={<OnboardingKYC />} />
         <Route path="/onboarding/qualification/:sessionId" element={<OnboardingQualification />} />

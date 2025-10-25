@@ -60,7 +60,7 @@ export function SiteHeader() {
           <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-md" data-testid="wallet-balance">
             <IconWallet className="h-4 w-4 fill-lime-500" />
             <span className="text-sm font-medium">
-              {balance.formatted} {balance.symbol}
+              {Number(balance.formatted).toFixed(3)} {balance.symbol}
             </span>
           </div>
         )}

@@ -72,7 +72,7 @@ export const supportedChains = [hardhat, anvil, sepolia, baseSepolia, optimismSe
  */
 async function validateERC3643Token(contractAddress: Address): Promise<boolean> {
   try {
-    // ERC-3643 Level 3 ABI for validation - parsed using parseAbi
+    // ERC-3643 ABI for validation - parsed using parseAbi
     const erc3643Abi = parseAbi([
       'function onchainID() external view returns (address)',
       'function identityRegistry() external view returns (address)',
@@ -312,8 +312,8 @@ export function InvestmentCalculator({ property, userId, className, onCalculate 
         <CardContent>
           <Alert>
             <Wallet className="h-4 w-4" />
-            <AlertDescription>
-              Please connect your EVM wallet (MetaMask, Coinbase Wallet, etc.) to view investment calculator.
+            <AlertDescription className="text-accent-foreground">
+              Please connect your wallet to view investment calculator.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -445,7 +445,7 @@ export function InvestmentCalculator({ property, userId, className, onCalculate 
           <AlertDescription className="text-xs">
             Projections are estimates based on current yield rates and ERC-3643 compliance status.
             {erc3643Compliant ? 
-              ' This investment meets ERC-3643 Level 3 regulatory standards.' : 
+              ' This investment meets ERC-3643 regulatory standards.' : 
               ' ERC-3643 compliance verification is recommended before investing.'
             }
             Past performance does not predict future results. {property.riskLevel} risk investment.

@@ -83,7 +83,7 @@ async function mintPropertyTokens(propertyId: string, amount: number): Promise<a
     if (contractAddress && contractAddress.startsWith('0x')) {
       const isValidERC3643 = await validateERC3643Token(contractAddress as Address);
       if (!isValidERC3643) {
-        throw new Error('Property contract is not ERC-3643 Level 3 compliant');
+        throw new Error('Property contract is not ERC-3643 compliant');
       }
 
       // Check minting permissions (optional - API will also validate)

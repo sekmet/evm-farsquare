@@ -24,7 +24,7 @@ export const supportedChains = [hardhat, anvil, sepolia, baseSepolia, optimismSe
  */
 export async function validateERC3643Token(contractAddress: Address): Promise<boolean> {
   try {
-    // ERC-3643 Level 3 ABI for validation - parsed using parseAbi
+    // ERC-3643 ABI for validation - parsed using parseAbi
     const erc3643Abi = parseAbi([
       'function onchainID() external view returns (address)',
       'function identityRegistry() external view returns (address)',
