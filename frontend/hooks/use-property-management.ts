@@ -5,10 +5,23 @@ import { validateERC3643Token, canMintTokens, validatePropertyOwnership } from '
 
 const API_BASE_URL = import.meta.env.VITE_BASE_API_URL || 'http://localhost:3000';
 
+interface PropertyUpdateParams {
+  userId: string;
+  updates: PropertyUpdateData;
+}
+
 interface PropertyUpdateData {
   name?: string;
   description?: string;
-  // Add other updateable fields as needed
+  location?: string;
+  property_type?: 'residential' | 'commercial' | 'industrial' | 'land';
+  total_tokens?: number;
+  token_price?: number;
+  annual_yield?: number;
+  risk_level?: 'low' | 'medium' | 'high';
+  minimum_investment?: number;
+  features?: string[];
+  images?: string[];
 }
 
 interface InvestorMessage {
@@ -18,13 +31,16 @@ interface InvestorMessage {
 }
 
 // Update property details
-async function updatePropertyDetails(propertyId: string, updates: PropertyUpdateData): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/api/properties/${propertyId}`, {
+async function updatePropertyDetails(propertyId: string, params: PropertyUpdateParams): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/api/properties/manage/${propertyId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(updates),
+    body: JSON.stringify({
+      userId: params.userId,
+      ...params.updates
+    }),
   });
 
   if (!response.ok) {
@@ -145,8 +161,8 @@ export function usePropertyManagement(propertyId: string) {
 
   // Update property details
   const updateProperty = useMutation({
-    mutationFn: (updates: PropertyUpdateData) =>
-      updatePropertyDetails(propertyId, updates),
+    mutationFn: (params: PropertyUpdateParams) =>
+      updatePropertyDetails(propertyId, params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
       toast({

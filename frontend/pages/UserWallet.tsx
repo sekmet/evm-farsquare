@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle,
   Clock,
@@ -24,7 +25,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/I18nContext";
 import { createSecureApiClientFromEnv } from "@/lib/secure-api";
-import { formatAddress, formatDate, getNetworkName, getNetworkColor } from "@/lib/utils";
+import { formatAddress, formatDate, getNetworkName, getNetworkColor, formatCurrency, getExplorerUrl } from "@/lib/utils";
 import { 
   type EVMNetwork, 
   type WalletInfo, 
@@ -36,7 +37,7 @@ import {
   type WalletInfoResponse,
   type WalletSummary,
 } from "@/types/wallet"
-import { type Address, type Hex, formatEther } from "viem";
+import { formatEther } from "viem";
 import { useAccount } from "wagmi";
 
 
@@ -77,6 +78,131 @@ export const getStatusBadge = (status: string) => {
     );
 };
 
+// Helper functions for USD calculations
+const getTokenPrice = (symbol: string, prices: any) => {
+  if (!prices) return 0;
+  
+  switch (symbol.toLowerCase()) {
+    case 'eth':
+      return prices.ethPrice || 0;
+    case 'usdc':
+      return prices.usdcPrice || 0;
+    case 'eurc':
+      return prices.eurcPrice || 0;
+    case 'pyusd':
+      return prices.pyusdPrice || 0;
+    case 'paxg':
+      return prices.paxgoldPrice || 0;
+    default:
+      return 0;
+  }
+};
+
+const calculateTokenBalanceUSD = (balance: TokenBalance, prices: any): number => {
+  const price = getTokenPrice(balance.symbol, prices);
+  const balanceValue = parseFloat(balance.formattedBalance);
+  return balanceValue * price;
+};
+
+const calculateTotalBalanceUSD = (balances: TokenBalance[], prices: any): number => {
+  return balances.reduce((total, balance) => {
+    return total + calculateTokenBalanceUSD(balance, prices);
+  }, 0);
+};
+
+// Helper functions for transaction USD calculations
+const calculateTransactionUSDValue = (tx: TransactionInfo, prices: any): number => {
+  const tokenInfo = getTransactionTokenInfo(tx);
+  
+  // For ERC-20 tokens, use the formatted amount directly
+  if (tokenInfo.isERC20) {
+    const tokenPrice = getTokenPrice(tokenInfo.symbol, prices);
+    return parseFloat(tokenInfo.amount) * tokenPrice;
+  }
+  
+  // For native ETH transfers, use the transaction value
+  if (tx.value > 0n) {
+    const ethValue = parseFloat(formatEther(tx.value));
+    return ethValue * (prices?.ethPrice || 0);
+  }
+  
+  return 0;
+};
+
+const getTransactionTokenInfo = (tx: TransactionInfo): { symbol: string; amount: string; isERC20: boolean } => {
+  // Check if this is an ERC-20 transfer by looking at logs
+  if (tx.logs && tx.logs.length > 0) {
+    for (const log of tx.logs) {
+      // ERC-20 Transfer event signature: 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+      if (log.topics && log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
+        // This is a Transfer event
+        const from = '0x' + log.topics[1].slice(26); // Remove padding
+        const to = '0x' + log.topics[2].slice(26); // Remove padding
+        const amountHex = log.data;
+        
+        // Parse amount (first 32 bytes of data)
+        const amount = BigInt('0x' + amountHex.slice(2, 66));
+        
+        // Try to identify the token symbol from the contract address
+        const tokenSymbol = getTokenSymbolFromAddress(log.address);
+        const decimals = getTokenDecimals(log.address);
+        
+        // Format amount according to token decimals
+        const formattedAmount = Number(amount) / Math.pow(10, decimals);
+        
+        return {
+          symbol: tokenSymbol,
+          amount: formattedAmount.toString(),
+          isERC20: true
+        };
+      }
+    }
+  }
+  
+  // Fallback to ETH transaction
+  if (tx.value > 0n) {
+    return {
+      symbol: 'ETH',
+      amount: formatEther(tx.value),
+      isERC20: false
+    };
+  }
+  
+  return {
+    symbol: 'ETH',
+    amount: '0',
+    isERC20: false
+  };
+};
+
+// Helper function to identify token symbols from contract addresses
+const getTokenSymbolFromAddress = (contractAddress: string): string => {
+  // Known token addresses from env
+  const knownTokens: Record<string, string> = {
+    '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238': 'USDC', // Sepolia USDC
+    '0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4': 'EURC', // Sepolia EURC
+    '0x036CbD53842c5426634e7929541eC2318f3dCF7e': 'USDC', // Base Sepolia USDC
+    '0x808456652fdb597867f38412077A9182bf77359F': 'EURC', // Base Sepolia EURC
+    '0xCaC524BcA292aaade2DF8A05cC58F0a65B1B3bB9': 'PYUSD', // Sepolia PYUSD
+  };
+  
+  return knownTokens[contractAddress.toLowerCase()] || 'UNKNOWN';
+};
+
+// Helper function to get token decimals
+const getTokenDecimals = (contractAddress: string): number => {
+  // Known token decimals
+  const tokenDecimals: Record<string, number> = {
+    '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238': 6, // Sepolia USDC
+    '0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4': 6, // Sepolia EURC
+    '0x036CbD53842c5426634e7929541eC2318f3dCF7e': 6, // Base Sepolia USDC
+    '0x808456652fdb597867f38412077A9182bf77359F': 6, // Base Sepolia EURC
+    '0xCaC524BcA292aaade2DF8A05cC58F0a65B1B3bB9': 6, // Sepolia PYUSD
+  };
+  
+  return tokenDecimals[contractAddress.toLowerCase()] || 18; // Default to 18 decimals
+};
+
 export default function UserWallet() {
   const { user } = useAuth();
   const { address: userAddress } = useAccount();
@@ -87,6 +213,13 @@ export default function UserWallet() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasWalletActivity, setHasWalletActivity] = useState<boolean | null>(null);
+  const [assetPrices, setAssetPrices] = useState<{
+    ethPrice: number;
+    pyusdPrice: number;
+    paxgoldPrice: number;
+    usdcPrice: number;
+    eurcPrice: number;
+  } | null>(null);
 
   useEffect(() => {
     if (user?.id && userAddress) {
@@ -103,10 +236,11 @@ export default function UserWallet() {
       setLoading(true);
       const apiClient = createSecureApiClientFromEnv();
 
-      // Load complete wallet information in parallel
-      const [balancesResult, transactionsResult] = await Promise.all([
+      // Load wallet data and asset prices in parallel
+      const [balancesResult, transactionsResult, pricesResult] = await Promise.all([
         apiClient.makeRequest<WalletBalancesResponse>(`/api/wallet/balances/${userAddress}`),
-        apiClient.makeRequest<WalletTransactionsResponse>(`/api/wallet/transactions/${userAddress}`)
+        apiClient.makeRequest<WalletTransactionsResponse>(`/api/wallet/transactions/${userAddress}`),
+        apiClient.makeRequest<{ ethPrice: number; pyusdPrice: number; paxgoldPrice: number; usdcPrice: number; eurcPrice: number }>(`/api/prices`)
       ]);
 
       let balances: TokenBalance[] = [];
@@ -120,15 +254,19 @@ export default function UserWallet() {
         transactions = transactionsResult.data as unknown as TransactionInfo[];
       }
 
+      if (pricesResult.success && pricesResult.data) {
+        setAssetPrices(pricesResult.data);
+      }
+
       setBalances(balances);
       setTransactions(transactions);
 
-      // Calculate wallet summary
+      // Calculate wallet summary with proper USD values
       const summary: WalletSummary = {
         address: userAddress,
-        totalBalanceUSD: 0, // Would need price oracle integration
+        totalBalanceUSD: calculateTotalBalanceUSD(balances, pricesResult.success ? pricesResult.data : null),
         networks: ['optimism-sepolia', 'base-sepolia', 'sepolia'],
-        lastActivity: (transactions.length > 0) ? transactions[0].timestamp || null : null,
+        lastActivity: (transactions.length > 0) ? (typeof transactions[0].timestamp === 'number' ? new Date(transactions[0].timestamp * 1000) : transactions[0].timestamp) || null : null,
         totalTransactions: transactions.length,
       };
 
@@ -204,10 +342,67 @@ export default function UserWallet() {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8 px-6">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+      <div className="container mx-auto py-8 space-y-6 px-6">
+        {/* Header Section Skeleton */}
+        <div className="flex items-center space-x-4">
+          <Skeleton className="h-24 w-24 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-48" />
+            <div className="flex items-center space-x-2">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs Skeleton */}
+        <div className="space-y-6">
+          <Skeleton className="h-10 w-full" />
+
+          {/* Overview Tab Content Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Four summary cards skeleton */}
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Card key={index}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-20 mb-2" />
+                  <Skeleton className="h-3 w-32" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Recent Transactions Preview Skeleton */}
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-48 mb-2" />
+              <Skeleton className="h-4 w-64" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <Skeleton className="h-4 w-4" />
+                      <div className="space-y-1">
+                        <Skeleton className="h-4 w-12" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Skeleton className="h-5 w-16 mb-1" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -267,13 +462,11 @@ export default function UserWallet() {
                 <Coins className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {balances.reduce((total, balance) =>
-                    total + parseFloat(balance.formattedBalance), 0
-                  ).toFixed(4)} ETH
+                <div className="text-3xl font-bold">
+                  {formatCurrency(walletInfo.summary.totalBalanceUSD)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Across {walletInfo.summary.networks.length} networks
+                  Across {walletInfo.summary.networks.length} networks and {balances.length} tokens
                 </p>
               </CardContent>
             </Card>
@@ -331,33 +524,37 @@ export default function UserWallet() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {walletInfo.recentTransactions.slice(0, 3).map((tx, index) => (
-                  <div key={tx.hash} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      {tx.from.toLowerCase() === walletInfo.address.toLowerCase() ? (
-                        <ArrowUpRight className="h-4 w-4 text-red-500" />
-                      ) : (
-                        <ArrowDownLeft className="h-4 w-4 text-green-500" />
-                      )}
-                      <div>
-                        <p className="font-medium">
-                          {tx.from.toLowerCase() === walletInfo.address.toLowerCase() ? 'Sent' : 'Received'}
-                        </p>
-                        <p className="text-sm text-gray-600 font-mono">
-                          {formatAddress(tx.hash)}
+                {walletInfo.recentTransactions.slice(0, 3).map((tx, index) => {
+                  const tokenInfo = getTransactionTokenInfo(tx);
+                  
+                  return (
+                    <div key={tx.hash} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        {tx.from.toLowerCase() === walletInfo.address.toLowerCase() ? (
+                          <ArrowUpRight className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <ArrowDownLeft className="h-4 w-4 text-green-500" />
+                        )}
+                        <div>
+                          <p className="font-medium">
+                            {tx.from.toLowerCase() === walletInfo.address.toLowerCase() ? 'Sent' : 'Received'}
+                          </p>
+                          <p className="text-sm text-gray-600 font-mono">
+                            {formatAddress(tx.hash)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge className={getNetworkColor(tx.network)}>
+                          {getNetworkName(tx.network)}
+                        </Badge>
+                        <p className="text-sm font-medium mt-1">
+                          {formatCurrency(Number(tokenInfo.amount))} {tokenInfo.symbol}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge className={getNetworkColor(tx.network)}>
-                        {getNetworkName(tx.network)}
-                      </Badge>
-                      <p className="text-sm font-medium mt-1">
-                        {parseFloat(formatEther(tx.value)).toFixed(4)} ETH
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {walletInfo.recentTransactions.length === 0 && (
                   <p className="text-center text-gray-500 py-8">No recent transactions</p>
                 )}
@@ -368,46 +565,86 @@ export default function UserWallet() {
 
         {/* Balances Tab */}
         <TabsContent value="balances" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {balances.map((balance, index) => (
-              <Card key={`${balance.network}-${balance.address}-${index}`}>
+          {/* ETH Balance - Prominent */}
+          {balances.filter(b => b.symbol === 'ETH' && b.isNative).map((balance, index) => (
+            <Card key={`eth-${balance.network}-${index}`} className="border-2 border-blue-200 bg-blue-50/50">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Network className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">{balance.name}</CardTitle>
+                    <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                      {getNetworkName(balance.network)}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-blue-900">
+                    {balance.formattedBalance.substring(0, 6)} {balance.symbol}
+                  </div>
+                  <div className="text-sm text-blue-700">
+                    ≈ {formatCurrency(calculateTokenBalanceUSD(balance, assetPrices))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Native Token</span>
+                  <Progress
+                    value={parseFloat(balance.formattedBalance) > 0 ? 100 : 0}
+                    className="w-24 h-2"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          {/* ERC-20 Tokens - Smaller cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {balances.filter(b => !b.isNative).map((balance, index) => (
+              <Card key={`${balance.network}-${balance.address}-${index}`} className="hover:shadow-md transition-shadow">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{balance.name}</CardTitle>
-                  <Badge className={getNetworkColor(balance.network)}>
+                  <CardTitle className="text-sm font-medium">{balance.symbol}</CardTitle>
+                  <Badge variant="outline" className={getNetworkColor(balance.network)}>
                     {getNetworkName(balance.network)}
                   </Badge>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{balance.formattedBalance}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {balance.symbol} • {balance.isNative ? 'Native' : 'ERC-20'}
-                  </p>
-                  <div className="mt-3">
+                  <div className="text-xl font-bold">{formatCurrency(Number(balance.formattedBalance))} {balance.symbol}</div>
+                  <div className="text-sm text-muted-foreground">
+                    ≈ {formatCurrency(calculateTokenBalanceUSD(balance, assetPrices))}
+                  </div>
+                  <div className="mt-2">
                     <Progress
                       value={parseFloat(balance.formattedBalance) > 0 ? 100 : 0}
-                      className="h-2"
+                      className="h-1"
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {balance.name}
+                  </p>
                 </CardContent>
               </Card>
             ))}
-            {balances.length === 0 && (
-              <Card className="col-span-full">
-                <CardContent className="flex items-center justify-center py-12">
-                  <div className="text-center">
-                    <Coins className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Balances Found</h3>
-                    <p className="text-gray-600">
-                      Your wallet doesn't have any tokens on the supported networks yet.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
+
+          {balances.filter(b => !b.isNative).length === 0 && balances.filter(b => b.symbol === 'ETH').length === 0 && (
+            <Card className="col-span-full">
+              <CardContent className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Coins className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Balances Found</h3>
+                  <p className="text-gray-600">
+                    Your wallet doesn't have any tokens on the supported networks yet.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
-        {/* Transactions Tab */}
         <TabsContent value="transactions" className="space-y-6">
           <Card>
             <CardHeader>
@@ -416,43 +653,59 @@ export default function UserWallet() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {transactions.map((tx) => (
-                  <div key={tx.hash} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      {tx.from.toLowerCase() === walletInfo.address.toLowerCase() ? (
-                        <ArrowUpRight className="h-4 w-4 text-red-500" />
-                      ) : (
-                        <ArrowDownLeft className="h-4 w-4 text-green-500" />
-                      )}
-                      <div>
-                        <p className="font-medium">
-                          {tx.from.toLowerCase() === walletInfo.address.toLowerCase() ? 'Sent' : 'Received'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          To: {formatAddress(tx.to || tx.from)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {tx.timestamp ? formatDate(tx.timestamp) : 'Unknown time'}
-                        </p>
+                {transactions.map((tx) => {
+                  const tokenInfo = getTransactionTokenInfo(tx);
+                  const usdValue = calculateTransactionUSDValue(tx, assetPrices);
+                  
+                  return (
+                    <div key={tx.hash} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        {tx.from.toLowerCase() === walletInfo.address.toLowerCase() ? (
+                          <ArrowUpRight className="h-4 w-4 text-red-500" />
+                        ) : (
+                          <ArrowDownLeft className="h-4 w-4 text-green-500" />
+                        )}
+                        <div>
+                          <p className="font-medium">
+                            {tx.from.toLowerCase() === walletInfo.address.toLowerCase() ? 'Sent' : 'Received'}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            To: {formatAddress(tx.to || tx.from)}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {tx.timestamp ? formatDate(tx.timestamp) : 'Date unavailable'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <Badge className={getNetworkColor(tx.network)}>
+                            {getNetworkName(tx.network)}
+                          </Badge>
+                          {getStatusBadge(tx.status || 'pending')}
+
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6"
+                          onClick={() => window.open(getExplorerUrl(tx.network, tx.hash), '_blank')}
+                        >
+                          View
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                        </div>
+                        <div className="text-sm font-medium">
+                          {formatCurrency(Number(tokenInfo.amount))} {tokenInfo.symbol}
+                        </div>
+                        {usdValue > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            ≈ {formatCurrency(usdValue)}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="text-right space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Badge className={getNetworkColor(tx.network)}>
-                          {getNetworkName(tx.network)}
-                        </Badge>
-                        {getStatusBadge(tx.status || 'pending')}
-                      </div>
-                      <p className="text-sm font-medium">
-                        {parseFloat(formatEther(tx.value)).toFixed(4)} ETH
-                      </p>
-                      <Button variant="ghost" size="sm" className="h-6 px-2">
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        View
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {transactions.length === 0 && (
                   <div className="text-center py-12">
                     <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />

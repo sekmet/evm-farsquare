@@ -25,7 +25,7 @@ export interface TransactionInfo {
   gasLimit: bigint;
   gasUsed?: bigint;
   status?: 'success' | 'failed' | 'pending';
-  timestamp?: Date;
+  timestamp?: Date | number;
   network: EVMNetwork;
   logs?: any[];
   input?: Hex;
