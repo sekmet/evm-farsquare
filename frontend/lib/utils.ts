@@ -17,8 +17,8 @@ export const formatDate = (date?: Date) => {
 
 export const getNetworkName = (network: EVMNetwork) => {
     const names = {
-      'optimism-testnet': 'Optimism Sepolia',
-      'testnet': 'Base Sepolia',
+      'optimism-sepolia': 'Optimism Sepolia',
+      'base-sepolia': 'Base Sepolia',
       'sepolia': 'Sepolia'
     };
     return names[network] || network;
@@ -26,8 +26,8 @@ export const getNetworkName = (network: EVMNetwork) => {
 
 export const getNetworkColor = (network: EVMNetwork) => {
     const colors = {
-      'optimism-testnet': 'bg-red-100 text-red-800',
-      'testnet': 'bg-blue-100 text-blue-800',
+      'optimism-sepolia': 'bg-red-100 text-red-800',
+      'base-sepolia': 'bg-blue-100 text-blue-800',
       'sepolia': 'bg-gray-100 text-gray-800'
     };
     return colors[network] || 'bg-gray-100 text-gray-800';

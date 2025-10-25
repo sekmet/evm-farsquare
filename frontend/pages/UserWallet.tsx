@@ -127,7 +127,7 @@ export default function UserWallet() {
       const summary: WalletSummary = {
         address: userAddress,
         totalBalanceUSD: 0, // Would need price oracle integration
-        networks: ['optimism-testnet', 'testnet', 'sepolia'],
+        networks: ['optimism-sepolia', 'base-sepolia', 'sepolia'],
         lastActivity: (transactions.length > 0) ? transactions[0].timestamp || null : null,
         totalTransactions: transactions.length,
       };
@@ -137,7 +137,7 @@ export default function UserWallet() {
         summary,
         balances,
         recentTransactions: transactions,
-        supportedNetworks: ['optimism-testnet', 'testnet', 'sepolia'],
+        supportedNetworks: ['optimism-sepolia', 'base-sepolia', 'sepolia'],
       };
 
       setWalletInfo(walletData);

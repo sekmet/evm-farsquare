@@ -54,7 +54,7 @@ export interface WalletInfo {
 }
 
 // Network type for wallet operations
-export type EVMNetwork = 'optimism-testnet' | 'testnet' | 'sepolia';
+export type EVMNetwork = 'optimism-sepolia' | 'base-sepolia' | 'sepolia';
 
 // API response interfaces
 export interface WalletBalancesResponse {
