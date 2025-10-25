@@ -21,12 +21,14 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import {
+  anvil,
+  hardhat,
   mainnet,
   base,
   baseSepolia,
   sepolia,
   polygon,
-  polygonMumbai,
+  polygonAmoy,
   optimism,
   optimismSepolia,
   arbitrum,
@@ -110,7 +112,7 @@ const erc20Abi = [
 /**
  * EVM Network Configuration
  */
-export type EVMNetwork = 'mainnet' | 'testnet' | 'devnet' | 'polygon' | 'polygon-testnet' | 'optimism' | 'optimism-testnet' | 'arbitrum' | 'arbitrum-testnet'
+export type EVMNetwork = 'mainnet' | 'base' |'base-sepolia' | 'sepolia' | 'devnet' | 'polygon' | 'polygon-amoy' | 'optimism' | 'optimism-sepolia' | 'arbitrum' | 'arbitrum-sepolia'
 
 /**
  * Chain Configuration
@@ -252,14 +254,16 @@ export type CountryCode = number
  */
 export const SUPPORTED_CHAINS: Record<EVMNetwork, Chain> = {
   mainnet: mainnet,
-  testnet: baseSepolia,
-  devnet: baseSepolia,
+  sepolia: sepolia,
+  base: base,
+  'base-sepolia': baseSepolia,
+  devnet: anvil,
   'polygon': polygon,
-  'polygon-testnet': polygonMumbai,
+  'polygon-amoy': polygonAmoy,
   'optimism': optimism,
-  'optimism-testnet': optimismSepolia,
+  'optimism-sepolia': optimismSepolia,
   'arbitrum': arbitrum,
-  'arbitrum-testnet': arbitrumSepolia,
+  'arbitrum-sepolia': arbitrumSepolia,
 }
 
 /**
@@ -273,7 +277,21 @@ export const CHAIN_CONFIGS: Record<EVMNetwork, ChainConfig> = {
     explorerUrl: 'https://etherscan.io',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   },
-  testnet: {
+  sepolia: {
+    id: 11155111,
+    name: 'Sepolia',
+    rpcUrl: process.env.SEPOLIA_RPC_URL || 'https://sepolia.infura.io/v3/',
+    explorerUrl: 'https://sepolia.etherscan.io',
+    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  },
+  base: {
+    id: 8453,
+    name: 'Base',
+    rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
+    explorerUrl: 'https://basescan.org',
+    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  },
+  'base-sepolia': {
     id: 84532,
     name: 'Base Sepolia',
     rpcUrl: process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org',
@@ -281,10 +299,10 @@ export const CHAIN_CONFIGS: Record<EVMNetwork, ChainConfig> = {
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   },
   devnet: {
-    id: 84532,
-    name: 'Base Sepolia (Dev)',
-    rpcUrl: process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org',
-    explorerUrl: 'https://sepolia.basescan.org',
+    id: 31337,
+    name: 'Anvil (Dev)',
+    rpcUrl: process.env.EVM_RPC_URL || 'http://127.0.0.1:8545',
+    explorerUrl: 'http://localhost:6550',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   },
   polygon: {
@@ -294,12 +312,12 @@ export const CHAIN_CONFIGS: Record<EVMNetwork, ChainConfig> = {
     explorerUrl: 'https://polygonscan.com',
     nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
   },
-  'polygon-testnet': {
+  'polygon-amoy': {
     id: 80001,
-    name: 'Polygon Mumbai',
-    rpcUrl: process.env.POLYGON_MUMBAI_RPC_URL || 'https://rpc-mumbai.maticvigil.com',
-    explorerUrl: 'https://mumbai.polygonscan.com',
-    nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+    name: 'Polygon Amoy',
+    rpcUrl: process.env.POLYGON_AMOY_RPC_URL || 'https://rpc-amoy.maticvigil.com',
+    explorerUrl: 'https://amoy.polygonscan.com',
+    nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
   },
   optimism: {
     id: 10,
@@ -308,7 +326,7 @@ export const CHAIN_CONFIGS: Record<EVMNetwork, ChainConfig> = {
     explorerUrl: 'https://optimistic.etherscan.io',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   },
-  'optimism-testnet': {
+  'optimism-sepolia': {
     id: 11155420,
     name: 'Optimism Sepolia',
     rpcUrl: process.env.OPTIMISM_SEPOLIA_RPC_URL || 'https://sepolia.optimism.io',
@@ -322,7 +340,7 @@ export const CHAIN_CONFIGS: Record<EVMNetwork, ChainConfig> = {
     explorerUrl: 'https://arbiscan.io',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   },
-  'arbitrum-testnet': {
+  'arbitrum-sepolia': {
     id: 421614,
     name: 'Arbitrum Sepolia',
     rpcUrl: process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc',
@@ -413,7 +431,7 @@ export class ERC3643ContractsService {
   private contractAddresses: ContractAddresses
 
   constructor(
-    network: EVMNetwork = 'testnet',
+    network: EVMNetwork = 'base-sepolia',
     customRpcUrl?: string,
     privateKey?: Hex
   ) {
@@ -1238,7 +1256,7 @@ export class ERC3643ContractsService {
 export class ContractsService extends ERC3643ContractsService {
   constructor(config?: { network?: EVMNetwork; rpcUrl?: string }) {
     super(
-      config?.network || 'testnet',
+      config?.network || 'base-sepolia',
       config?.rpcUrl,
       process.env.EVM_PRIVATE_KEY as Hex
     )

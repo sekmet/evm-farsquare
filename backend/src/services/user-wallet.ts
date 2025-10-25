@@ -48,18 +48,18 @@ export type EVMNetwork = BaseEVMNetwork | 'sepolia';
 
 // Supported networks for wallet operations
 export const WALLET_SUPPORTED_NETWORKS: EVMNetwork[] = [
-  'optimism-testnet', // Optimism Sepolia
-  'testnet',          // Base Sepolia
+  'optimism-sepolia', // Optimism Sepolia
+  'base-sepolia',          // Base Sepolia
   'sepolia'          // Sepolia
 ];
 
 // Network configurations with RPC URLs from environment
 export const WALLET_CHAIN_CONFIGS: Record<EVMNetwork, { chain: Chain; rpcUrl: string }> = {
-  'optimism-testnet': {
+  'optimism-sepolia': {
     chain: optimismSepolia,
     rpcUrl: env.OPTIMISM_SEPOLIA_RPC_URL as string
   },
-  'testnet': {
+  'base-sepolia': {
     chain: baseSepolia,
     rpcUrl: env.BASE_SEPOLIA_RPC_URL as string
   },
@@ -69,26 +69,28 @@ export const WALLET_CHAIN_CONFIGS: Record<EVMNetwork, { chain: Chain; rpcUrl: st
   },
   // Add other networks for completeness but not used for wallet operations
   mainnet: { chain: mainnet, rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://mainnet.infura.io' },
+  base: { chain: base, rpcUrl: process.env.BASE_RPC_URL || 'https://base.org' },
   'polygon': { chain: polygon, rpcUrl: process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com' },
-  'polygon-testnet': { chain: polygonMumbai, rpcUrl: process.env.POLYGON_MUMBAI_RPC_URL || 'https://rpc-mumbai.maticvigil.com' },
+  'polygon-amoy': { chain: polygonMumbai, rpcUrl: process.env.POLYGON_MUMBAI_RPC_URL || 'https://rpc-mumbai.maticvigil.com' },
   'optimism': { chain: optimism, rpcUrl: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io' },
   'arbitrum': { chain: arbitrum, rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc' },
-  'arbitrum-testnet': { chain: arbitrumSepolia, rpcUrl: process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc' },
+  'arbitrum-sepolia': { chain: arbitrumSepolia, rpcUrl: process.env.ARBITRUM_SEPOLIA_RPC_URL || 'https://sepolia-rollup.arbitrum.io/rpc' },
   devnet: { chain: baseSepolia, rpcUrl: process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org' }
 };
 
 // HyperSync URL mappings for supported networks
 export const HYPERSYNC_NETWORK_URLS: Record<EVMNetwork, string> = {
-  'optimism-testnet': 'http://optimism-sepolia.hypersync.xyz',
-  'testnet': 'http://base-sepolia.hypersync.xyz',
+  'optimism-sepolia': 'http://optimism-sepolia.hypersync.xyz',
+  'base-sepolia': 'http://base-sepolia.hypersync.xyz',
   'sepolia': 'http://sepolia.hypersync.xyz',
   // Fallback URLs for other networks (not used for wallet operations)
   mainnet: 'http://eth.hypersync.xyz',
+  'base': 'http://base.hypersync.xyz',
   'polygon': 'http://polygon.hypersync.xyz',
-  'polygon-testnet': 'http://polygon-mumbai.hypersync.xyz',
+  'polygon-amoy': 'http://polygon-amoy.hypersync.xyz',
   'optimism': 'http://optimism.hypersync.xyz',
   'arbitrum': 'http://arbitrum.hypersync.xyz',
-  'arbitrum-testnet': 'http://arbitrum-sepolia.hypersync.xyz',
+  'arbitrum-sepolia': 'http://arbitrum-sepolia.hypersync.xyz',
   devnet: 'http://base-sepolia.hypersync.xyz'
 };
 
