@@ -227,6 +227,44 @@ export class UserProfileService {
   }
 
   /**
+   * Check if user profile exists by EVM address
+   */
+  async userProfileExists(evmAddress: string): Promise<DbResult<boolean>> {
+    try {
+      const query = `
+        SELECT EXISTS(SELECT 1 FROM public.profiles WHERE evm_address = $1) as exists
+      `;
+
+      const result = await this.pool.query(query, [evmAddress]);
+      return { success: true, data: result.rows[0].exists };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to check user profile existence: ${error instanceof Error ? error.message : "Unknown error"}`
+      };
+    }
+  }
+
+  /**
+   * Check if user profile exists by user ID
+   */
+  async userProfileExistsById(userId: string): Promise<DbResult<boolean>> {
+    try {
+      const query = `
+        SELECT EXISTS(SELECT 1 FROM public.profiles WHERE user_id = $1) as exists
+      `;
+
+      const result = await this.pool.query(query, [userId]);
+      return { success: true, data: result.rows[0].exists };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to check user profile existence: ${error instanceof Error ? error.message : "Unknown error"}`
+      };
+    }
+  }
+
+  /**
    * Get user identity claims from ONCHAINID system
    */
   private async getUserIdentityClaims(userId: string): Promise<Record<string, IdentityClaim>> {
@@ -470,9 +508,9 @@ export class UserProfileService {
    */
   async updateUserProfile(userId: string, updates: Partial<UserProfileData>): Promise<DbResult<UserProfileData>> {
     try {
-      // Build dynamic update query
+      // Build dynamic upsert query
       const fields = Object.keys(updates).filter(key =>
-        !['id', 'user_id', 'created_at'].includes(key) // Don't update these fields
+        !['id', 'created_at'].includes(key) // Don't update these fields
       );
 
       if (fields.length === 0) {
@@ -483,21 +521,36 @@ export class UserProfileService {
       }
 
       const setClause = fields.map((field, index) => `${field} = $${index + 2}`).join(', ');
+      const conflictSetClause = fields.map(field => `${field} = EXCLUDED.${field}`).join(', ');
       const values = fields.map(field => (updates as any)[field]);
+    
+      console.log('Updating profile for user:', userId);
+      const exists = await this.userProfileExistsById(userId);
+      console.log('Profile exists:', exists);
 
-      const updateQuery = `
+      //const isConflictUpdate = conflictSetClause 
+      //? `ON CONFLICT (user_id) DO UPDATE SET ${conflictSetClause}, updated_at = NOW()`
+      //: 'DO NOTHING';
+
+      const upsertQuery = exists && exists.success && exists.data ? `
         UPDATE public.profiles
         SET ${setClause}, updated_at = NOW()
         WHERE user_id = $1
         RETURNING *
+      ` : `
+        INSERT INTO public.profiles (user_id, ${fields.join(', ')})
+        VALUES ($1, ${fields.map((_, index) => `$${index + 2}`).join(', ')})
+        RETURNING *
       `;
 
-      const result = await this.pool.query(updateQuery, [userId, ...values]);
+      console.log('Upsert query:', upsertQuery);
+
+      const result = await this.pool.query(upsertQuery, [userId, ...values]);
 
       if (result.rows.length === 0) {
         return {
           success: false,
-          error: 'User profile not found'
+          error: 'Failed to upsert user profile'
         };
       }
 
@@ -506,27 +559,9 @@ export class UserProfileService {
     } catch (error) {
       return {
         success: false,
-        error: `Failed to update user profile: ${error instanceof Error ? error.message : "Unknown error"}`
+        error: `Failed to upsert user profile: ${error instanceof Error ? error.message : "Unknown error"}`
       };
     }
   }
 
-  /**
-   * Check if user profile exists
-   */
-  async userProfileExists(evmAddress: string): Promise<DbResult<boolean>> {
-    try {
-      const query = `
-        SELECT EXISTS(SELECT 1 FROM public.profiles WHERE evm_address = $1) as exists
-      `;
-
-      const result = await this.pool.query(query, [evmAddress]);
-      return { success: true, data: result.rows[0].exists };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Failed to check user profile existence: ${error instanceof Error ? error.message : "Unknown error"}`
-      };
-    }
-  }
 }

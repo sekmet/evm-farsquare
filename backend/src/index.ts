@@ -26,6 +26,7 @@ import { IdentityService } from "./services/identity";
 import { ComplianceService } from "./services/compliance";
 import { MonitoringService, monitoringService } from "./services/monitoring";
 import { UserProfileService } from "./services/user-profile";
+import { UserWalletService } from "./services/user-wallet";
 import { createWalletClient, http, encodeFunctionData, type WalletClient, type Address } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { base, mainnet } from 'viem/chains'
@@ -96,6 +97,7 @@ let aiInsightsService: AIInsightsService | null = null;
 let identityService: IdentityService | null = null;
 let complianceService: ComplianceService | null = null;
 let userProfileService: UserProfileService | null = null;
+let userWalletService: UserWalletService | null = null;
 
 try {
   // Get database configuration from environment
@@ -144,6 +146,9 @@ try {
 
   // Initialize user profile service
   userProfileService = new UserProfileService(databaseService.getPool());
+
+  // Initialize user wallet service
+  userWalletService = new UserWalletService(databaseService.getPool());
 
   // Initialize TREX contracts service
   trexContractsService = new TrexContractsService(contractsService!);
@@ -655,6 +660,203 @@ app.post("/api/sign", async (c) => {
       success: false,
       error: "Failed to sign payload",
       details: error instanceof Error ? error.message : "Unknown error",
+    }, 500);
+  }
+});
+
+// ============================================================================
+// USER WALLET API ENDPOINTS
+// ============================================================================
+
+// Get user wallet balances across all supported networks
+app.get("/api/wallet/balances/:evmAddress", async (c) => {
+  try {
+    const evmAddress = c.req.param("evmAddress");
+
+    if (!evmAddress) {
+      return c.json({ error: "EVM address is required" }, 400);
+    }
+
+    if (!evmAddress.startsWith('0x') || evmAddress.length !== 42) {
+      return c.json({ error: "Invalid EVM address format" }, 400);
+    }
+
+    if (!userWalletService) {
+      return c.json({ error: "User wallet service not initialized" }, 500);
+    }
+
+    const balancesResult = await userWalletService.getWalletBalancesSerialized(evmAddress as Address);
+
+    if (!balancesResult.success) {
+      return c.json({
+        success: false,
+        error: balancesResult.error,
+      }, 500);
+    }
+
+    return c.json({
+      success: true,
+      data: balancesResult.data,
+    });
+  } catch (error) {
+    console.error("Get wallet balances error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to get wallet balances",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
+// Get user recent transactions across all supported networks
+app.get("/api/wallet/transactions/:evmAddress", async (c) => {
+  try {
+    const evmAddress = c.req.param("evmAddress");
+    const limit = parseInt(c.req.query("limit") || "20");
+
+    if (!evmAddress) {
+      return c.json({ error: "EVM address is required" }, 400);
+    }
+
+    if (!evmAddress.startsWith('0x') || evmAddress.length !== 42) {
+      return c.json({ error: "Invalid EVM address format" }, 400);
+    }
+
+    if (limit < 1 || limit > 100) {
+      return c.json({ error: "Limit must be between 1 and 100" }, 400);
+    }
+
+    if (!userWalletService) {
+      return c.json({ error: "User wallet service not initialized" }, 500);
+    }
+
+    const transactionsResult = await userWalletService.getRecentTransactionsSerialized(evmAddress as Address, limit);
+
+    if (!transactionsResult.success) {
+      return c.json({
+        success: false,
+        error: transactionsResult.error,
+      }, 500);
+    }
+
+    return c.json({
+      success: true,
+      data: transactionsResult.data,
+    });
+  } catch (error) {
+    console.error("Get wallet transactions error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to get wallet transactions",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
+// Get complete wallet information
+app.get("/api/wallet/:evmAddress", async (c) => {
+  try {
+    const evmAddress = c.req.param("evmAddress");
+
+    if (!evmAddress) {
+      return c.json({ error: "EVM address is required" }, 400);
+    }
+
+    if (!evmAddress.startsWith('0x') || evmAddress.length !== 42) {
+      return c.json({ error: "Invalid EVM address format" }, 400);
+    }
+
+    if (!userWalletService) {
+      return c.json({ error: "User wallet service not initialized" }, 500);
+    }
+
+    const walletResult = await userWalletService.getWalletInfoSerialized(evmAddress as Address);
+
+    if (!walletResult.success) {
+      return c.json({
+        success: false,
+        error: walletResult.error,
+      }, 500);
+    }
+
+    return c.json({
+      success: true,
+      data: walletResult.data,
+    });
+  } catch (error) {
+    console.error("Get wallet info error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to get wallet information",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
+// Check if wallet has activity on supported networks
+app.get("/api/wallet/activity/:evmAddress", async (c) => {
+  try {
+    const evmAddress = c.req.param("evmAddress");
+
+    if (!evmAddress) {
+      return c.json({ error: "EVM address is required" }, 400);
+    }
+
+    if (!evmAddress.startsWith('0x') || evmAddress.length !== 42) {
+      return c.json({ error: "Invalid EVM address format" }, 400);
+    }
+
+    if (!userWalletService) {
+      return c.json({ error: "User wallet service not initialized" }, 500);
+    }
+
+    const activityResult = await userWalletService.hasWalletActivity(evmAddress as Address);
+
+    if (!activityResult.success) {
+      return c.json({
+        success: false,
+        error: activityResult.error,
+      }, 500);
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        hasActivity: activityResult.data,
+      },
+    });
+  } catch (error) {
+    console.error("Check wallet activity error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to check wallet activity",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
+// Get supported wallet networks
+app.get("/api/wallet/networks", async (c) => {
+  try {
+    if (!userWalletService) {
+      return c.json({ error: "User wallet service not initialized" }, 500);
+    }
+
+    const networks = userWalletService.getSupportedNetworks();
+
+    return c.json({
+      success: true,
+      data: {
+        networks,
+        count: networks.length,
+      },
+    });
+  } catch (error) {
+    console.error("Get wallet networks error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to get supported networks",
+      details: error instanceof Error ? error.message : "Unknown error"
     }, 500);
   }
 });
