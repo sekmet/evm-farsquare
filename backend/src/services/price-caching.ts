@@ -20,6 +20,8 @@ interface PriceCache {
   pyusd?: CachedPrice;
   paxgold?: CachedPrice;
   optimism?: CachedPrice;
+  usdc?: CachedPrice;
+  eurc?: CachedPrice;
 }
 
 // Cache duration: 5 minutes
@@ -32,6 +34,8 @@ const ETH_PRICE_ENDPOINT = "https://api.coingecko.com/api/v3/simple/price?ids=et
 const PYUSD_PRICE_ENDPOINT = "https://api.coingecko.com/api/v3/simple/price?ids=paypal-usd&vs_currencies=usd";
 const PAXGOLD_PRICE_ENDPOINT = "https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd";
 const OPTIMISM_PRICE_ENDPOINT = "https://api.coingecko.com/api/v3/simple/price?ids=optimism&vs_currencies=usd";
+const USDC_PRICE_ENDPOINT = "https://api.coingecko.com/api/v3/simple/price?ids=usd-coin&vs_currencies=usd";
+const EURC_PRICE_ENDPOINT = "https://api.coingecko.com/api/v3/simple/price?ids=euro-coin&vs_currencies=usd";
 
 /**
  * Check if cached price is still valid
@@ -186,47 +190,94 @@ export const fetchPAXGOLDPrice = async (): Promise<number> => {
 
 
 /**
- * Fetch OPTIMISM price with caching
+ * Fetch USDC price with caching
  */
-export const fetchOPTIMISMPrice = async (): Promise<number> => {
+export const fetchUSDCPrice = async (): Promise<number> => {
   // Return cached value if valid
-  if (isCacheValid(priceCache.optimism)) {
-    console.log("Using cached OPTIMISM price:", priceCache.optimism!.value);
-    return priceCache.optimism!.value;
+  if (isCacheValid(priceCache.usdc)) {
+    console.log("Using cached USDC price:", priceCache.usdc!.value);
+    return priceCache.usdc!.value;
   }
 
-  console.log("Fetching fresh OPTIMISM price from CoinGecko...");
+  console.log("Fetching fresh USDC price from CoinGecko...");
   
   try {
-    const response = await fetch(OPTIMISM_PRICE_ENDPOINT);
+    const response = await fetch(USDC_PRICE_ENDPOINT);
     if (!response.ok) {
-      throw new Error(`Failed to fetch OPTIMISM price: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to fetch USDC price: ${response.status} ${response.statusText}`);
     }
     
     const data = await response.json() as CoinGeckoSimplePriceResponse;
-    const optimismData = data.optimism;
-    if (!optimismData || typeof optimismData.usd !== 'number') {
-      throw new Error("OPTIMISM price data unavailable from provider response");
+    const usdcData = data['usd-coin'];
+    if (!usdcData || typeof usdcData.usd !== 'number') {
+      throw new Error("USDC price data unavailable from provider response");
     }
-    const value = Number(optimismData.usd);
+    const value = Number(usdcData.usd);
     
     if (Number.isNaN(value)) {
-      throw new Error("OPTIMISM price unavailable from provider response");
+      throw new Error("USDC price unavailable from provider response");
     }
 
     // Update cache
-    priceCache.optimism = {
+    priceCache.usdc = {
       value,
       timestamp: Date.now(),
     };
 
-    console.log("OPTIMISM price cached:", value);
+    console.log("USDC price cached:", value);
     return value;
   } catch (error) {
     // If fetch fails but we have old cached data, use it
-    if (priceCache.optimism) {
-      console.warn("OPTIMISM price fetch failed, using stale cache:", error);
-      return priceCache.optimism.value;
+    if (priceCache.usdc) {
+      console.warn("USDC price fetch failed, using stale cache:", error);
+      return priceCache.usdc.value;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Fetch EURC price with caching
+ */
+export const fetchEURCPrice = async (): Promise<number> => {
+  // Return cached value if valid
+  if (isCacheValid(priceCache.eurc)) {
+    console.log("Using cached EURC price:", priceCache.eurc!.value);
+    return priceCache.eurc!.value;
+  }
+
+  console.log("Fetching fresh EURC price from CoinGecko...");
+  
+  try {
+    const response = await fetch(EURC_PRICE_ENDPOINT);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch EURC price: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json() as CoinGeckoSimplePriceResponse;
+    const eurcData = data['euro-coin'];
+    if (!eurcData || typeof eurcData.usd !== 'number') {
+      throw new Error("EURC price data unavailable from provider response");
+    }
+    const value = Number(eurcData.usd);
+    
+    if (Number.isNaN(value)) {
+      throw new Error("EURC price unavailable from provider response");
+    }
+
+    // Update cache
+    priceCache.eurc = {
+      value,
+      timestamp: Date.now(),
+    };
+
+    console.log("EURC price cached:", value);
+    return value;
+  } catch (error) {
+    // If fetch fails but we have old cached data, use it
+    if (priceCache.eurc) {
+      console.warn("EURC price fetch failed, using stale cache:", error);
+      return priceCache.eurc.value;
     }
     throw error;
   }
@@ -240,6 +291,8 @@ export const clearPriceCache = (): void => {
   priceCache.pyusd = undefined;
   priceCache.paxgold = undefined;
   priceCache.optimism = undefined;
+  priceCache.usdc = undefined;
+  priceCache.eurc = undefined;
   console.log("Price cache cleared");
 };
 
@@ -267,6 +320,16 @@ export const getCacheStatus = () => {
       value: priceCache.optimism.value,
       age: Date.now() - priceCache.optimism.timestamp,
       valid: isCacheValid(priceCache.optimism),
+    } : null,
+    usdc: priceCache.usdc ? {
+      value: priceCache.usdc.value,
+      age: Date.now() - priceCache.usdc.timestamp,
+      valid: isCacheValid(priceCache.usdc),
+    } : null,
+    eurc: priceCache.eurc ? {
+      value: priceCache.eurc.value,
+      age: Date.now() - priceCache.eurc.timestamp,
+      valid: isCacheValid(priceCache.eurc),
     } : null,
   };
 };

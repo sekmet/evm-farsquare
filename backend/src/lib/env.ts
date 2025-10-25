@@ -36,6 +36,13 @@ export const env = {
   BASE_SEPOLIA_RPC_URL: process.env.BASE_SEPOLIA_RPC_URL,
   SEPOLIA_RPC_URL: process.env.SEPOLIA_RPC_URL,
 
+  // Tokens Contracts
+  USDC_SEPOLIA_ADDRESS: process.env.USDC_SEPOLIA_ADDRESS,
+  USDC_BASE_SEPOLIA_ADDRESS: process.env.USDC_BASE_SEPOLIA_ADDRESS,
+  PYUSD_SEPOLIA_ADDRESS: process.env.PYUSD_SEPOLIA_ADDRESS,
+  EURC_SEPOLIA_ADDRESS: process.env.EURC_SEPOLIA_ADDRESS,
+  EURC_BASE_SEPOLIA_ADDRESS: process.env.EURC_BASE_SEPOLIA_ADDRESS,
+
   // Node Environment
   NODE_ENV: process.env.NODE_ENV || "development",
 };
@@ -57,6 +64,9 @@ export function validateEnvironment(): void {
     "OPTIMISM_SEPOLIA_RPC_URL",
     "BASE_SEPOLIA_RPC_URL",
     "SEPOLIA_RPC_URL",
+    "USDC_SEPOLIA_ADDRESS",
+    "USDC_BASE_SEPOLIA_ADDRESS",
+    "PYUSD_SEPOLIA_ADDRESS",
   ];
 
   const missingVars = requiredVars.filter(varName => !env[varName as keyof typeof env]);

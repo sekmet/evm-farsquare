@@ -32,6 +32,7 @@ import type {
   FieldSelection,
   TransactionSelection
 } from '@envio-dev/hypersync-client';
+
 import type {
   Address,
   Hex,
@@ -52,6 +53,61 @@ export const WALLET_SUPPORTED_NETWORKS: EVMNetwork[] = [
   'base-sepolia',          // Base Sepolia
   'sepolia'          // Sepolia
 ];
+
+// ERC20 Token configurations per network
+export const ERC20_TOKENS: Record<EVMNetwork, Array<{
+  address: Address;
+  symbol: string;
+  name: string;
+  decimals: number;
+}>> = {
+  'sepolia': [
+    {
+      address: env.USDC_SEPOLIA_ADDRESS as Address,
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6
+    },
+    {
+      address: env.PYUSD_SEPOLIA_ADDRESS as Address,
+      symbol: 'PYUSD',
+      name: 'PayPal USD',
+      decimals: 6
+    },
+    {
+      address: env.EURC_SEPOLIA_ADDRESS as Address,
+      symbol: 'EURC',
+      name: 'Euro Coin',
+      decimals: 6
+    }
+  ],
+  'base-sepolia': [
+    {
+      address: env.USDC_BASE_SEPOLIA_ADDRESS as Address,
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6
+    },
+    {
+      address: env.EURC_BASE_SEPOLIA_ADDRESS as Address,
+      symbol: 'EURC',
+      name: 'Euro Coin',
+      decimals: 6
+    }
+  ],
+  'optimism-sepolia': [
+    // Add optimism-sepolia specific tokens if needed
+  ],
+  // Include other networks with empty arrays for completeness
+  mainnet: [],
+  base: [],
+  polygon: [],
+  'polygon-amoy': [],
+  optimism: [],
+  arbitrum: [],
+  'arbitrum-sepolia': [],
+  devnet: []
+};
 
 // Network configurations with RPC URLs from environment
 export const WALLET_CHAIN_CONFIGS: Record<EVMNetwork, { chain: Chain; rpcUrl: string }> = {
@@ -91,7 +147,7 @@ export const HYPERSYNC_NETWORK_URLS: Record<EVMNetwork, string> = {
   'optimism': 'http://optimism.hypersync.xyz',
   'arbitrum': 'http://arbitrum.hypersync.xyz',
   'arbitrum-sepolia': 'http://arbitrum-sepolia.hypersync.xyz',
-  devnet: 'http://base-sepolia.hypersync.xyz'
+  devnet: 'http://127.0.0.1:8545'
 };
 
 // ERC20 ABI for balance queries
@@ -328,8 +384,22 @@ export class UserWalletService {
   }
 
   /**
-   * Get ERC20 token balance for address
+   * Format token balance according to token decimals
    */
+  private formatTokenBalance(balance: bigint, decimals: number): string {
+    const balanceString = balance.toString();
+    const integerPart = balanceString.slice(0, -decimals) || '0';
+    const fractionalPart = balanceString.slice(-decimals).padStart(decimals, '0');
+    
+    // Remove trailing zeros from fractional part
+    const trimmedFractional = fractionalPart.replace(/0+$/, '');
+    
+    if (trimmedFractional) {
+      return `${integerPart}.${trimmedFractional}`;
+    }
+    
+    return integerPart;
+  }
   private async getERC20Balance(
     tokenAddress: Address,
     ownerAddress: Address,
@@ -615,9 +685,34 @@ export class UserWalletService {
         }
       }
 
-      // TODO: Add ERC20 token balance scanning
-      // This would require indexing token transfers or using a token list
-      // For now, we'll focus on native balances
+      // Get ERC20 token balances for each supported network
+      for (const network of WALLET_SUPPORTED_NETWORKS) {
+        const networkTokens = ERC20_TOKENS[network] || [];
+        if (networkTokens.length === 0) continue;
+
+        for (const token of networkTokens) {
+          try {
+            const tokenBalance = await this.getERC20Balance(token.address, address, network);
+            if (tokenBalance > 0n) {
+              // Format balance according to token decimals
+              const formattedBalance = this.formatTokenBalance(tokenBalance, token.decimals);
+
+              balances.push({
+                address: token.address,
+                symbol: token.symbol,
+                name: token.name,
+                decimals: token.decimals,
+                balance: tokenBalance,
+                formattedBalance,
+                network,
+                isNative: false,
+              });
+            }
+          } catch (error) {
+            console.error(`Failed to get ${token.symbol} balance for ${network}:`, error);
+          }
+        }
+      }
 
       return { success: true, data: balances };
     } catch (error) {

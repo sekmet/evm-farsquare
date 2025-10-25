@@ -28,7 +28,8 @@ import {
   fetchETHPrice,
   fetchPYUSDPrice,
   fetchPAXGOLDPrice,
-  fetchOPTIMISMPrice,
+  fetchUSDCPrice,
+  fetchEURCPrice,
   clearPriceCache,
   getCacheStatus
 } from './price-caching';
@@ -115,6 +116,8 @@ export interface PriceUpdate {
   pyusdPrice: number;
   paxgoldPrice: number;
   optimismPrice: number;
+  usdcPrice: number;
+  eurcPrice: number;
   priceChange24h: number;
   volume24h: number;
   lastUpdated: Date;
@@ -242,21 +245,24 @@ export class PriceService {
     ethPrice: number;
     pyusdPrice: number;
     paxgoldPrice: number;
-    optimismPrice: number;
+    usdcPrice: number;
+    eurcPrice: number;
   }> {
     try {
-      const [ethPrice, pyusdPrice, paxgoldPrice, optimismPrice] = await Promise.all([
+      const [ethPrice, pyusdPrice, paxgoldPrice, usdcPrice, eurcPrice] = await Promise.all([
         fetchETHPrice(),
         fetchPYUSDPrice(),
         fetchPAXGOLDPrice(),
-        fetchOPTIMISMPrice()
+        fetchUSDCPrice(),
+        fetchEURCPrice()
       ]);
 
       return {
         ethPrice,
         pyusdPrice,
         paxgoldPrice,
-        optimismPrice
+        usdcPrice,
+        eurcPrice
       };
     } catch (error) {
       console.warn('Failed to get asset prices, using fallbacks:', error);
@@ -264,7 +270,8 @@ export class PriceService {
         ethPrice: 2500, // Fallback ETH price
         pyusdPrice: 1.0, // PYUSD is pegged to USD
         paxgoldPrice: 2200, // Fallback PAXG price
-        optimismPrice: 2.5 // Fallback OP price
+        usdcPrice: 1.0, // USDC is pegged to USD
+        eurcPrice: 1.08 // Fallback EURC price (approx EUR/USD rate)
       };
     }
   }
@@ -381,7 +388,8 @@ export class PriceService {
               ethPrice: assetPrices.ethPrice,
               pyusdPrice: assetPrices.pyusdPrice,
               paxgoldPrice: assetPrices.paxgoldPrice,
-              optimismPrice: assetPrices.optimismPrice,
+              usdcPrice: assetPrices.usdcPrice,
+              eurcPrice: assetPrices.eurcPrice,
               priceChange24h,
               volume24h,
               lastUpdated: row.last_updated,
@@ -399,7 +407,8 @@ export class PriceService {
               ethPrice: 2500, // Fallback ETH price
               pyusdPrice: 1.0, // PYUSD pegged to USD
               paxgoldPrice: 2200, // Fallback PAXG price
-              optimismPrice: 2.5, // Fallback OP price
+              usdcPrice: 1.0, // USDC pegged to USD
+              eurcPrice: 1.08, // EURC approx EUR/USD rate
               priceChange24h: 0,
               volume24h: 0,
               lastUpdated: row.last_updated,
@@ -474,7 +483,8 @@ export class PriceService {
         ethPrice: assetPrices.ethPrice,
         pyusdPrice: assetPrices.pyusdPrice,
         paxgoldPrice: assetPrices.paxgoldPrice,
-        optimismPrice: assetPrices.optimismPrice,
+        usdcPrice: assetPrices.usdcPrice,
+        eurcPrice: assetPrices.eurcPrice,
         priceChange24h,
         volume24h,
         lastUpdated: row.last_updated,
