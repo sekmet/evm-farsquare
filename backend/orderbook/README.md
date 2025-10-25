@@ -7,6 +7,11 @@
 
 A **production-ready ERC-3643 compliant decentralized orderbook** built with **Hono framework** and **Viem**, featuring **Uniswap V3 automated settlement**, **real-time compliance validation**, and **enterprise-grade security** for tokenized securities trading.
 
+```bash
+    "start:orderbook": "bun run backend/orderbook/server.ts",
+    "keeper": "bun run backend/orderbook/keeper.ts"
+```
+
 ---
 
 ## 🏗️ **System Architecture**

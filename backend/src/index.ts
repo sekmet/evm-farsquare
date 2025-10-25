@@ -25,6 +25,7 @@ import { AIInsightsService } from "./services/ai-insights";
 import { IdentityService } from "./services/identity";
 import { ComplianceService } from "./services/compliance";
 import { MonitoringService, monitoringService } from "./services/monitoring";
+import { UserProfileService } from "./services/user-profile";
 import { createWalletClient, http, encodeFunctionData, type WalletClient, type Address } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { base, mainnet } from 'viem/chains'
@@ -94,6 +95,7 @@ let systemAdminService: SystemAdminService | null = null;
 let aiInsightsService: AIInsightsService | null = null;
 let identityService: IdentityService | null = null;
 let complianceService: ComplianceService | null = null;
+let userProfileService: UserProfileService | null = null;
 
 try {
   // Get database configuration from environment
@@ -139,6 +141,9 @@ try {
     contractsService['walletClient']!,
     toAddress(process.env.COMPLIANCE_ADDRESS)
   );
+
+  // Initialize user profile service
+  userProfileService = new UserProfileService(databaseService.getPool());
 
   // Initialize TREX contracts service
   trexContractsService = new TrexContractsService(contractsService!);
@@ -309,33 +314,153 @@ app.post("/api/users", async (c) => {
   }
 });
 
-// Get user by STX address
-app.get("/api/users/by-address/:evmAddress", async (c) => {
+// Get user profile by EVM address
+app.get("/api/users/profile/:evmAddress", async (c) => {
   try {
     const evmAddress = c.req.param("evmAddress");
 
-    if (!databaseService) {
-      return c.json({ error: "Database service not initialized" }, 500);
+    if (!evmAddress) {
+      return c.json({ error: "EVM address is required" }, 400);
     }
 
-    const result = await databaseService.getPool().query(
-      "SELECT id, evm_address, wallet_type, public_key, created_at FROM public.profiles WHERE evm_address = $1",
-      [evmAddress]
-    );
+    if (!userProfileService) {
+      return c.json({ error: "User profile service not initialized" }, 500);
+    }
 
-    if (result.rows.length === 0) {
-      return c.json({ error: "User not found" }, 404);
+    const profileResult = await userProfileService.getUserProfile(evmAddress);
+
+    if (!profileResult.success) {
+      return c.json({
+        success: false,
+        error: profileResult.error,
+      }, 404);
     }
 
     return c.json({
       success: true,
-      data: result.rows[0]
+      data: profileResult.data,
     });
   } catch (error) {
-    console.error("Get user by address error:", error);
+    console.error("Get user profile error:", error);
     return c.json({
       success: false,
-      error: "Failed to get user",
+      error: "Failed to get user profile",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
+// Get user profile by user ID
+app.get("/api/users/profile/id/:userId", async (c) => {
+  try {
+    const userId = c.req.param("userId");
+
+    if (!userId) {
+      return c.json({ error: "User ID is required" }, 400);
+    }
+
+    if (!userProfileService) {
+      return c.json({ error: "User profile service not initialized" }, 500);
+    }
+
+    const profileResult = await userProfileService.getUserProfileById(userId);
+
+    if (!profileResult.success) {
+      return c.json({
+        success: false,
+        error: profileResult.error,
+      }, 404);
+    }
+
+    return c.json({
+      success: true,
+      data: profileResult.data,
+    });
+  } catch (error) {
+    console.error("Get user profile by ID error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to get user profile by ID",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
+// Update user profile
+app.put("/api/users/profile/:userId", async (c) => {
+  try {
+    const userId = c.req.param("userId");
+    const updates = await c.req.json();
+
+    if (!userId) {
+      return c.json({ error: "User ID is required" }, 400);
+    }
+
+    if (!updates || Object.keys(updates).length === 0) {
+      return c.json({ error: "Updates object is required" }, 400);
+    }
+
+    if (!userProfileService) {
+      return c.json({ error: "User profile service not initialized" }, 500);
+    }
+
+    const updateResult = await userProfileService.updateUserProfile(userId, updates);
+
+    if (!updateResult.success) {
+      return c.json({
+        success: false,
+        error: updateResult.error,
+      }, 400);
+    }
+
+    return c.json({
+      success: true,
+      data: updateResult.data,
+      message: "User profile updated successfully"
+    });
+  } catch (error) {
+    console.error("Update user profile error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to update user profile",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
+// Check if user profile exists
+app.get("/api/users/profile/exists/:evmAddress", async (c) => {
+  try {
+    const evmAddress = c.req.param("evmAddress");
+
+    if (!evmAddress) {
+      return c.json({ error: "EVM address is required" }, 400);
+    }
+
+    if (!userProfileService) {
+      return c.json({ error: "User profile service not initialized" }, 500);
+    }
+
+    const existsResult = await userProfileService.userProfileExists(evmAddress);
+
+    if (!existsResult.success) {
+      return c.json({
+        success: false,
+        error: existsResult.error,
+      }, 500);
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        exists: existsResult.data,
+      },
+    });
+  } catch (error) {
+    console.error("Check user profile exists error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to check user profile existence",
       details: error instanceof Error ? error.message : "Unknown error"
     }, 500);
   }
