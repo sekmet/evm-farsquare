@@ -25,6 +25,7 @@ import PropertyDetails from "@/pages/properties/PropertyDetails";
 import AIInsights from "@/pages/ai-insights/AIInsights";
 import PropertiesOverview from "@/pages/properties/PropertiesOverview";
 import UserProfile from "@/pages/UserProfile";
+import UserWallet from "@/pages/UserWallet";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +77,7 @@ function AppRoutes() {
         <Route path="/properties/overview" element={<PropertiesOverview />} />
         <Route path="/properties/:id" element={<PropertyDetails />} />
         <Route path="/analytics" element={<AIInsights />} />
+        <Route path="/wallet" element={<UserWallet />} />
       </Routes>
     </Layout>
   );
