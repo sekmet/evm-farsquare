@@ -18,7 +18,7 @@ FarSquare implements a **holistic ecosystem** for Real World Asset (RWA) tokeniz
 
 ## Video Demo
 
-- [https://www.youtube.com/embed/naC2kdwlc4Y](https://www.youtube.com/watch?v=naC2kdwlc4Y)
+- https://www.youtube.com/watch?v=naC2kdwlc4Y
 
 ## Core Features
 
