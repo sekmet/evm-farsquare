@@ -80,7 +80,7 @@ export default function OnboardingESign() {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
       <div className="w-full">
-      <div className="max-w-6xl mx-auto mt-0">
+      <div className="container mx-auto mt-0">
         {/* Progress Indicator */}
         <div className="mb-8">
           <OnboardingProgress currentStep="esign" />

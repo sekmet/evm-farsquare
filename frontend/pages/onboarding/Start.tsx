@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { OnboardingProgress } from "@/components/onboarding/onboarding-progress";
-import { WalletConnectField } from "@/components/onboarding/wallet-connect-field";
+import { WalletConnectButton } from "@/components/wallet-connect-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -117,7 +117,7 @@ export default function OnboardingStart() {
             <Wallet className="h-16 w-16 text-gray-400 mb-4" />
             <h3 className="text-xl font-semibold mb-2">Connect Your Wallet</h3>
             <p className="text-gray-600 text-center mb-6 max-w-md">
-              To view your wallet balances and transaction history, you need to connect your EVM-compatible wallet.
+              To continue onboarding, you need to connect your EVM-compatible wallet.
               This will allow you to interact with ERC-3643 compliant tokens and view your portfolio.
             </p>
             <div className="space-y-4 w-full max-w-sm">
@@ -131,17 +131,7 @@ export default function OnboardingStart() {
               </div>
 
               {!userProfile?.profile?.evm_address && user?.id && (
-                <div className="space-y-4">
-                  <WalletConnectField
-                    userId={user.id}
-                    onWalletConnected={(address) => {
-                      toast({
-                        title: "Wallet Connected",
-                        description: `Wallet ${address.slice(0, 6)}...${address.slice(-4)} linked successfully.`,
-                      });
-                    }}
-                  />
-                </div>
+                <WalletConnectButton userId={user?.id as string} />
               )}
 
               <p className="text-xs text-gray-500 text-center">

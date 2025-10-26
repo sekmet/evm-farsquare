@@ -98,7 +98,7 @@ export function LoginForm({
                   {isLoading ? "Logging in..." : "Login"}
                 </Button>
               </Field>
-              <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+              {/*<FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                 Or continue with
               </FieldSeparator>
 
@@ -107,7 +107,7 @@ export function LoginForm({
                   onSuccess={handleSIWESuccess}
                   onError={handleSIWEError}
                 />
-              </Field>
+              </Field>*/}
 
               {/*<Field className="grid grid-cols-3 gap-4">
                 <Button variant="outline" type="button">

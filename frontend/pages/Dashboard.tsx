@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useEffect} from "react";
 
 import { RecentTransactionsWidget } from "@/components/widgets/recent-transactions-widget";
 import { ActiveOrdersWidget } from "@/components/widgets/active-orders-widget";
@@ -7,8 +7,24 @@ import { MarketInsightsChart } from "@/components/charts/market-insights-chart";
 import { PropertyAnalyticsChart } from "@/components/charts/property-analytics-chart";
 import { PortfolioCards } from "@/components/portfolio-cards"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
+import { useUserProfile } from "@/hooks/use-user-profile";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Fetch user profile to check for evm_address
+  const { data: userProfile, isLoading: profileLoading } = useUserProfile(user?.id);
+
+  useEffect(() => {
+    if (profileLoading) return;
+    if (!userProfile?.profile?.evm_address) {
+      navigate('/onboarding/start');
+    }
+  }, [userProfile, navigate, profileLoading]);
+
   return (
     <div className="@container/main flex flex-1 flex-col gap-2">
       <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">

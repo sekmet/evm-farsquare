@@ -40,6 +40,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useNavigate, Link } from "react-router-dom"
 import logo from '@/assets/logo-farsquare.png'
 import { NavPortfolio } from "./nav-portfolio"
+import { usePropertyManagement } from "@/hooks/use-property-management"
 
 const data = {
   user: {
@@ -156,12 +157,15 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { getOwnedProperties } = usePropertyManagement(user?.id as string);
 
   const userInfo = {
     name: user?.name as string,
     email: user?.email as string,
     avatar: "/avatars/shadcn.jpg",
   };
+
+  const ownedProperties = getOwnedProperties.data;
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -182,8 +186,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavPortfolio items={data.portfolio} />
-        <NavInvestors items={data.investors} />
+        {ownedProperties?.length > 0 ? <NavPortfolio items={data.portfolio} /> : null}
+        {ownedProperties?.length > 0 ? <NavInvestors items={data.investors} /> : null}
         {/*<NavSecondary items={data.navSecondary} className="mt-auto" />*/}
       </SidebarContent>
       <SidebarFooter>

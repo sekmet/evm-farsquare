@@ -37,7 +37,7 @@ export default function OnboardingComplete() {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
       <div className="w-full">
-      <div className="max-w-6xl mx-auto -mt-8">
+      <div className="container mx-auto -mt-8">
         {/* Progress Indicator - Hidden for completion */}
         <div className="mb-8 opacity-50">
           <OnboardingProgress currentStep="complete" />

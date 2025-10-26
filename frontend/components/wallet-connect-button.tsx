@@ -68,6 +68,7 @@ export function WalletConnectButton({ userId, onWalletConnected }: WalletConnect
         description: "Your wallet has been linked to your account successfully.",
       });
       onWalletConnected?.(address!);
+      window.location.reload();
     },
     onError: (error) => {
       const errorMessage = error instanceof Error ? error.message : "Failed to update profile";

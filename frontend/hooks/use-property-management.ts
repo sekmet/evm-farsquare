@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
 import { type Address } from 'viem';
 import { validateERC3643Token, canMintTokens, validatePropertyOwnership } from '@/lib/evm-client-api';
@@ -29,6 +29,19 @@ interface InvestorMessage {
   message: string;
   recipientType?: 'all' | 'specific' | 'group';
 }
+
+// Fetch property owner data
+async function fetchPropertiesOwned(userId: string): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/api/properties/manage/owned/${userId}`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch owned properties: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.success ? data.data : null;
+}
+
 
 // Update property details
 async function updatePropertyDetails(propertyId: string, params: PropertyUpdateParams): Promise<any> {
@@ -159,6 +172,12 @@ async function sendMessageToInvestors(propertyId: string, message: InvestorMessa
 export function usePropertyManagement(propertyId: string) {
   const queryClient = useQueryClient();
 
+  // Get owned properties
+  const getOwnedProperties = useQuery({
+    queryKey: ['properties-owned', propertyId],
+    queryFn: () => fetchPropertiesOwned(propertyId),
+  });
+
   // Update property details
   const updateProperty = useMutation({
     mutationFn: (params: PropertyUpdateParams) =>
@@ -240,6 +259,7 @@ export function usePropertyManagement(propertyId: string) {
   });
 
   return {
+    getOwnedProperties,
     updateProperty,
     uploadDocument,
     mintTokens,
