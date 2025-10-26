@@ -29,6 +29,11 @@ import UserWallet from "@/pages/UserWallet";
 import AddProperty from "@/pages/properties/AddProperty";
 import UpdateProperty from "@/pages/properties/UpdateProperty";
 import DeployToken from "@/pages/properties/DeployToken";
+import Tokens from "@/pages/Tokens";
+import TokenManagement from "@/pages/TokenManagement";
+import Investors from "@/pages/Investors";
+import Candidates from "@/pages/Candidates";
+import Requests from "@/pages/Requests";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +89,11 @@ function AppRoutes() {
         <Route path="/properties/:id/deploy-token" element={<DeployToken />} />
         <Route path="/analytics" element={<AIInsights />} />
         <Route path="/wallet" element={<UserWallet />} />
+        <Route path="/tokens" element={<Tokens />} />
+        <Route path="/token-management" element={<TokenManagement />} />
+        <Route path="/investors" element={<Investors />} />
+        <Route path="/candidates" element={<Candidates />} />
+        <Route path="/requests" element={<Requests />} />
       </Routes>
     </Layout>
   );

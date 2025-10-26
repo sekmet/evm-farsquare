@@ -22,10 +22,11 @@ import {
   IconUsers,
 } from "@tabler/icons-react"
 
-import { NavDocuments } from "@/components/nav-documents"
+//import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
+import { NavInvestors } from "@/components/nav-investors"
 import {
   Sidebar,
   SidebarContent,
@@ -38,6 +39,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext"
 import { useNavigate, Link } from "react-router-dom"
 import logo from '@/assets/logo-farsquare.png'
+import { NavPortfolio } from "./nav-portfolio"
 
 const data = {
   user: {
@@ -60,11 +62,6 @@ const data = {
       title: "Marketplace",
       url: "/marketplace",
       icon: IconShoppingCart,
-    },
-    {
-      title: "Tokens",
-      url: "/tokens",
-      icon: IconCoin,
     },
     {
       title: "Analytics",
@@ -125,37 +122,32 @@ const data = {
       ],
     },
   ],
-  navSecondary: [
+  portfolio: [
     {
-      title: "Settings",
-      url: "/settings",
-      icon: IconSettings,
+      title: "Tokens",
+      url: "/tokens",
+      icon: IconCoin,
     },
     {
-      title: "Help",
-      url: "/help",
-      icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "/search",
-      icon: IconSearch,
+      title: "Management",
+      url: "/token-management",
+      icon: IconHome,
     },
   ],
-  documents: [
+  investors: [
     {
-      name: "Documentation",
-      url: "/docs",
-      icon: IconFileDescription,
+      title: "Investors",
+      url: "/investors",
+      icon: IconWallet,
     },
     {
-      name: "API Reference",
-      url: "/docs/api",
+      title: "Candidates",
+      url: "/candidates",
       icon: IconFileAi,
     },
     {
-      name: "Compliance Guide",
-      url: "/docs/compliance",
+      title: "Requests",
+      url: "/requests",
       icon: IconReport,
     },
   ],
@@ -190,8 +182,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavPortfolio items={data.portfolio} />
+        <NavInvestors items={data.investors} />
+        {/*<NavSecondary items={data.navSecondary} className="mt-auto" />*/}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userInfo} />

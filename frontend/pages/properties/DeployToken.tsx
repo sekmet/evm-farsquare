@@ -14,6 +14,7 @@ import { usePropertyDetails } from '@/hooks/use-property-details';
 import { useMutation } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createSecureApiClientFromEnv } from '@/lib/secure-api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TokenDeploymentData {
   // Token basic info
@@ -52,6 +53,7 @@ const DeployToken = () => {
   const navigate = useNavigate();
   const { state } = useWallet();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Initialize secure API client
   const secureApi = createSecureApiClientFromEnv();
@@ -110,8 +112,16 @@ const DeployToken = () => {
         throw new Error('Property ID is required');
       }
 
+      if (!user?.id) {
+        throw new Error('User ID is required');
+      }
+
+      if(!state.address){
+        throw new Error('Wallet address is required');
+      }
+
       // Use secure API client to deploy token
-      const response = await secureApi.deployToken(propertyId, params.tokenData);
+      const response = await secureApi.deployToken({propertyId, tokenData: params.tokenData, userId: user.id, ownerAddress: state.address as `0x${string}`});
 
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to deploy token');

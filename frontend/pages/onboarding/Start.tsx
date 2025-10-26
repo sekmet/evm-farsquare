@@ -129,10 +129,21 @@ export default function OnboardingStart() {
                   <Badge variant="outline" className="bg-white">Sepolia</Badge>
                 </div>
               </div>
-              <Button className="w-full" size="lg">
-                <Wallet className="h-4 w-4 mr-2" />
-                Connect Wallet
-              </Button>
+
+              {!userProfile?.profile?.evm_address && user?.id && (
+                <div className="space-y-4">
+                  <WalletConnectField
+                    userId={user.id}
+                    onWalletConnected={(address) => {
+                      toast({
+                        title: "Wallet Connected",
+                        description: `Wallet ${address.slice(0, 6)}...${address.slice(-4)} linked successfully.`,
+                      });
+                    }}
+                  />
+                </div>
+              )}
+
               <p className="text-xs text-gray-500 text-center">
                 By connecting your wallet, you agree to our terms of service and privacy policy.
               </p>

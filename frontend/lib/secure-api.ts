@@ -270,10 +270,10 @@ export class SecureApiClient {
   /**
    * Deploy Property Token 
    * */
-  async deployToken(propertyId: string, tokenData: any): Promise<SecureApiResponse> {
+  async deployToken({propertyId, userId, ownerAddress, tokenData}: {propertyId: string, userId: string, ownerAddress: `0x${string}`, tokenData: any}): Promise<SecureApiResponse> {
     return this.makeRequestPrivate(`/api/properties/${propertyId}/deploy-token`, {
       method: "POST",
-      body: JSON.stringify(tokenData),
+      body: JSON.stringify({propertyId, userId, ownerAddress, tokenData}),
     });
   }
 

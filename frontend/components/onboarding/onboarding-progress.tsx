@@ -4,14 +4,25 @@ interface ProgressProps {
   currentStep: string;
 }
 
+function getStepIndex(step: number, currentStep: string) {
+  let indexStep = 0;
+  if (currentStep === 'start') indexStep = 0;
+  if (currentStep === 'kyc') indexStep = 1;
+  if (currentStep === 'identity') indexStep = 2;
+  if (currentStep === 'qualification') indexStep = 3;
+  if (currentStep === 'esign') indexStep = 4;
+  if (currentStep === 'complete') indexStep = 5;
+  return step < indexStep ? true : false;
+}
+
 export function OnboardingProgress({ currentStep }: ProgressProps) {
   const steps = [
-    { id: 'start', label: 'Getting Started', completed: true },
-    { id: 'kyc', label: 'Identity Verification' },
-    { id: 'identity', label: 'On-Chain Identity Setup' },
-    { id: 'qualification', label: 'Qualification Review' },
-    { id: 'esign', label: 'Electronic Signature' },
-    { id: 'complete', label: 'Onboarding Complete' }
+    { id: 'start', label: 'Getting Started', completed: getStepIndex(0, currentStep) },
+    { id: 'kyc', label: 'Identity Verification', completed: getStepIndex(1, currentStep) },
+    { id: 'identity', label: 'On-Chain Identity Setup', completed: getStepIndex(2, currentStep) },
+    { id: 'qualification', label: 'Qualification Review', completed: getStepIndex(3, currentStep) },
+    { id: 'esign', label: 'Electronic Signature', completed: getStepIndex(4, currentStep) },
+    { id: 'complete', label: 'Onboarding Complete', completed: getStepIndex(5, currentStep) }
   ];
 
   const currentIndex = steps.findIndex(step => step.id === currentStep);

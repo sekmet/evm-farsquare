@@ -37,8 +37,10 @@ import {
   type WalletInfoResponse,
   type WalletSummary,
 } from "@/types/wallet"
+
 import { formatEther } from "viem";
 import { useAccount } from "wagmi";
+import { WalletConnectButton } from "@/components/wallet-connect-button";
 
 
 export const getStatusIcon = (status: string) => {
@@ -326,10 +328,11 @@ export default function UserWallet() {
                   <Badge variant="outline" className="bg-white">Sepolia</Badge>
                 </div>
               </div>
-              <Button className="w-full" size="lg">
+              {/*<Button className="w-full" size="lg">
                 <WalletIcon className="h-4 w-4 mr-2" />
                 Connect Wallet
-              </Button>
+              </Button>*/}
+              <WalletConnectButton userId={user?.id as string} />
               <p className="text-xs text-gray-500 text-center">
                 By connecting your wallet, you agree to our terms of service and privacy policy.
               </p>
