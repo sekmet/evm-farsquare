@@ -1,10 +1,15 @@
 /**
  * Property Management Service
  * Handles property creation, updates, and ownership management
+ * Integrated with ERC-3643 T-REX Token Factory for tokenization
  */
 
 import type { Pool } from "pg";
 import type { DbResult } from "./database";
+import { PropertyTokenFactoryService, type PropertyTokenDeploymentRequest, type TokenDeploymentData } from "./property-token-factory-updated";
+import { ERC3643ContractsService, type EVMNetwork } from "./contracts";
+import type { Address, Hex } from "viem";
+import { parseEther } from "viem";
 
 export interface PropertyCreateData {
   contractAddress: string;
@@ -49,13 +54,43 @@ export interface PropertyOwnership {
 }
 
 /**
+ * Extended property creation data with optional token deployment
+ */
+export interface PropertyCreateWithTokenData extends PropertyCreateData {
+  tokenData?: TokenDeploymentData;
+  deployToken?: boolean;
+  network?: EVMNetwork;
+}
+
+/**
  * Service for managing property operations
  */
 export class PropertyManagementService {
   private pool: Pool;
+  private tokenFactoryServices: Map<EVMNetwork, PropertyTokenFactoryService>;
 
   constructor(pool: Pool) {
     this.pool = pool;
+    this.tokenFactoryServices = new Map();
+  }
+
+  /**
+   * Get or create PropertyTokenFactoryService for network
+   */
+  private getTokenFactoryService(network: EVMNetwork): PropertyTokenFactoryService {
+    if (!this.tokenFactoryServices.has(network)) {
+      const rpcUrl = process.env[`${network.toUpperCase()}_RPC_URL`];
+      const privateKey = process.env.WALLET_PRIVATE_KEY as Hex | undefined;
+      
+      if (!privateKey) {
+        throw new Error('WALLET_PRIVATE_KEY not configured');
+      }
+      
+      const service = PropertyTokenFactoryService.createForNetwork(network, rpcUrl, privateKey);
+      this.tokenFactoryServices.set(network, service);
+    }
+    
+    return this.tokenFactoryServices.get(network)!;
   }
 
   /**
@@ -104,7 +139,7 @@ export class PropertyManagementService {
 
       // Get user ID from evm address
       const userQuery = `
-        SELECT id FROM public.profiles WHERE evm_address = $1
+        SELECT user_id FROM public.profiles WHERE evm_address = $1
       `;
       const userResult = await client.query(userQuery, [data.ownerAddress]);
 
@@ -117,7 +152,7 @@ export class PropertyManagementService {
           )
           VALUES ($1, $2, 'owner', 100, true, true, true, true)
         `;
-        await client.query(ownershipQuery, [userResult.rows[0].id, propertyId]);
+        await client.query(ownershipQuery, [userResult.rows[0].user_id, propertyId]);
       }
 
       await client.query('COMMIT');
@@ -134,6 +169,302 @@ export class PropertyManagementService {
       };
     } finally {
       client.release();
+    }
+  }
+
+  /**
+   * Create property with automatic T-REX token deployment
+   */
+  async createPropertyWithToken(
+    data: PropertyCreateWithTokenData
+  ): Promise<DbResult<{ id: string; tokenAddress?: Address; deployment?: any }>> {
+    const client = await this.pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+
+      // Step 1: Create property record
+      const propertyQuery = `
+        INSERT INTO public.properties (
+          contract_address, token_symbol, name, description, location,
+          property_type, total_tokens, available_tokens, token_price,
+          total_value, annual_yield, risk_level, features, images,
+          funding_progress, minimum_investment, created_by, status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'active')
+        RETURNING id
+      `;
+
+      const propertyValues = [
+        '0x0000000000000000000000000000000000000000', // Placeholder, updated after token deployment
+        data.tokenData?.symbol || data.tokenSymbol || 'PROP',
+        data.name,
+        data.description,
+        data.location,
+        data.propertyType,
+        data.totalTokens?.toString() || '1000000',
+        data.availableTokens?.toString() || '1000000',
+        data.tokenPrice || '1',
+        data.totalValue,
+        data.annualYield,
+        data.riskLevel,
+        data.features,
+        data.images,
+        data.fundingProgress || 0,
+        data.minimumInvestment,
+        data.createdBy,
+      ];
+
+      const propertyResult = await client.query(propertyQuery, propertyValues);
+      const propertyId = propertyResult.rows[0].id;
+
+      // Step 2: Create ownership record
+      const userQuery = `SELECT user_id FROM public.profiles WHERE evm_address = $1`;
+      const userResult = await client.query(userQuery, [data.ownerAddress]);
+
+      if (userResult.rows.length > 0) {
+        const ownershipQuery = `
+          INSERT INTO public.property_ownership (
+            user_id, property_id, ownership_type, ownership_percentage,
+            can_edit, can_mint_tokens, can_manage_documents, can_communicate_investors
+          )
+          VALUES ($1, $2, 'owner', 100, true, true, true, true)
+        `;
+        await client.query(ownershipQuery, [userResult.rows[0].user_id, propertyId]);
+      }
+
+      await client.query('COMMIT');
+
+      // Step 3: Deploy token if requested
+      if (data.deployToken && data.tokenData && data.network) {
+        console.log(`[PropertyManagement] Deploying token for property ${propertyId}`);
+        
+        try {
+          const tokenFactoryService = this.getTokenFactoryService(data.network);
+          
+          const tokenRequest: PropertyTokenDeploymentRequest = {
+            propertyId,
+            userId: data.createdBy,
+            ownerAddress: data.ownerAddress as `0x${string}`,
+            tokenData: {
+              ...data.tokenData,
+              propertyId,
+            }
+          };
+
+          const deploymentResult = await tokenFactoryService.deployPropertyToken(tokenRequest);
+
+          if (deploymentResult.success && deploymentResult.data) {
+            // Update property with token address
+            const updateQuery = `
+              UPDATE public.properties
+              SET contract_address = $1, token_symbol = $2, updated_at = NOW()
+              WHERE id = $3
+            `;
+            await this.pool.query(updateQuery, [
+              deploymentResult.data.tokenAddress,
+              data.tokenData.symbol,
+              propertyId
+            ]);
+
+            return {
+              success: true,
+              data: {
+                id: propertyId,
+                tokenAddress: deploymentResult.data.tokenAddress,
+                deployment: deploymentResult.data
+              }
+            };
+          } else {
+            console.warn(`[PropertyManagement] Token deployment failed: ${deploymentResult.error}`);
+            return {
+              success: true,
+              data: {
+                id: propertyId,
+                tokenAddress: undefined,
+                deployment: { error: deploymentResult.error }
+              }
+            };
+          }
+        } catch (tokenError) {
+          console.error(`[PropertyManagement] Token deployment error:`, tokenError);
+          return {
+            success: true,
+            data: {
+              id: propertyId,
+              tokenAddress: undefined,
+              deployment: { 
+                error: tokenError instanceof Error ? tokenError.message : 'Unknown token deployment error' 
+              }
+            }
+          };
+        }
+      }
+
+      return {
+        success: true,
+        data: { id: propertyId },
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      return {
+        success: false,
+        error: `Failed to create property: ${error instanceof Error ? error.message : "Unknown error"}`,
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Deploy T-REX token for existing property
+   */
+  async deployTokenForProperty(
+    propertyId: string,
+    userId: string,
+    tokenData: TokenDeploymentData,
+    ownerAddress: `0x${string}`,
+    network: EVMNetwork
+  ): Promise<DbResult<{ tokenAddress: Address; deployment: any }>> {
+    try {
+      // Check permission
+      const permissionCheck = await this.checkPropertyPermission(propertyId, userId, 'mint');
+      if (!permissionCheck.success || !permissionCheck.data) {
+        return {
+          success: false,
+          error: "Unauthorized: You don't have permission to deploy token for this property"
+        };
+      }
+
+      // Check if token already deployed
+      const propertyQuery = `SELECT contract_address FROM public.properties WHERE id = $1`;
+      const propertyResult = await this.pool.query(propertyQuery, [propertyId]);
+      
+      if (propertyResult.rows.length === 0) {
+        return {
+          success: false,
+          error: "Property not found"
+        };
+      }
+
+      const existingAddress = propertyResult.rows[0].contract_address;
+      if (existingAddress && existingAddress !== '0x0000000000000000000000000000000000000000') {
+        return {
+          success: false,
+          error: "Token already deployed for this property"
+        };
+      }
+
+      // Deploy token
+      console.log(`[PropertyManagement] Deploying token for existing property ${propertyId}`);
+      
+      const tokenFactoryService = this.getTokenFactoryService(network);
+      
+      const tokenRequest: PropertyTokenDeploymentRequest = {
+        propertyId,
+        userId,
+        ownerAddress,
+        tokenData: {
+          ...tokenData,
+          propertyId,
+        }
+      };
+
+      const deploymentResult = await tokenFactoryService.deployPropertyToken(tokenRequest);
+
+      if (!deploymentResult.success || !deploymentResult.data) {
+        return {
+          success: false,
+          error: deploymentResult.error || 'Token deployment failed'
+        };
+      }
+
+      // Update property with token address
+      const updateQuery = `
+        UPDATE public.properties
+        SET contract_address = $1, token_symbol = $2, updated_at = NOW()
+        WHERE id = $3
+      `;
+      await this.pool.query(updateQuery, [
+        deploymentResult.data.tokenAddress,
+        tokenData.symbol,
+        propertyId
+      ]);
+
+      return {
+        success: true,
+        data: {
+          tokenAddress: deploymentResult.data.tokenAddress,
+          deployment: JSON.stringify(deploymentResult.data, null, 2)
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to deploy token: ${error instanceof Error ? error.message : "Unknown error"}`,
+      };
+    }
+  }
+
+  /**
+   * Mint property tokens to investors
+   */
+  async mintPropertyTokens(
+    propertyId: string,
+    userId: string,
+    recipients: Array<{ address: `0x${string}`; amount: string }>
+  ): Promise<DbResult<{ txHashes: string[]; totalMinted: bigint }>> {
+    try {
+      // Check permission
+      const permissionCheck = await this.checkPropertyPermission(propertyId, userId, 'mint');
+      if (!permissionCheck.success || !permissionCheck.data) {
+        return {
+          success: false,
+          error: "Unauthorized: You don't have permission to mint tokens for this property"
+        };
+      }
+
+      // Get property and token info
+      const propertyQuery = `
+        SELECT p.contract_address, pt.token_contract, t.name, t.symbol
+        FROM public.properties p
+        LEFT JOIN public.property_tokens pt ON p.id = pt.property_id
+        LEFT JOIN public.tokens t ON pt.token_contract = t.contract_address
+        WHERE p.id = $1
+      `;
+      const propertyResult = await this.pool.query(propertyQuery, [propertyId]);
+      
+      if (propertyResult.rows.length === 0) {
+        return {
+          success: false,
+          error: "Property not found"
+        };
+      }
+
+      const tokenAddress = propertyResult.rows[0].contract_address || propertyResult.rows[0].token_contract;
+      if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
+        return {
+          success: false,
+          error: "Token not deployed for this property"
+        };
+      }
+
+      // TODO: Implement actual minting logic using ERC3643ContractsService
+      // For now, return placeholder
+      console.log(`[PropertyManagement] Would mint tokens from ${tokenAddress} to ${recipients.length} recipients`);
+
+      return {
+        success: true,
+        data: {
+          txHashes: [],
+          totalMinted: 0n
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to mint tokens: ${error instanceof Error ? error.message : "Unknown error"}`,
+      };
     }
   }
 

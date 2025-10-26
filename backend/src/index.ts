@@ -10,7 +10,7 @@ import { PropertyManagementService } from "./services/properties-management";
 import { OnboardingService } from "./services/onboarding";
 import { ERC3643ContractsService, type EVMNetwork } from "./services/contracts";
 import { TrexContractsService } from "./services/trex-contracts";
-import { PropertyTokenFactoryService, type DeployedTokenSuite } from "./services/property-token-factory";
+import { PropertyTokenFactoryService } from "./services/property-token-factory-updated";
 import { IdentityRegistryService } from "./services/identity-registry";
 import { SettlementService } from "./services/settlement";
 
@@ -127,7 +127,7 @@ try {
 
   // Initialize contracts service for EVM networks
   contractsService = new ERC3643ContractsService(
-    (process.env.EVM_NETWORK as EVMNetwork) || 'polygon-amoy'
+    (process.env.EVM_NETWORK as EVMNetwork) || 'devnet'
   );
 
   // Initialize identity service (after contractsService)
@@ -157,7 +157,7 @@ try {
   propertyTokenFactoryService = new PropertyTokenFactoryService(
     contractsService!,
     databaseService.getPool(),
-    toAddress(process.env.TREX_FACTORY_ADDRESS)
+    //toAddress(process.env.TREX_FACTORY_ADDRESS)
   );
 
   // Initialize identity registry service
@@ -2561,6 +2561,278 @@ app.get("/api/properties/manage/:id/permission/:userId/:permission", async (c) =
   }
 });
 
+// ============================================================================
+// PROPERTY-TOKEN INTEGRATION API ENDPOINTS
+// ============================================================================
+
+// Create property with automatic T-REX token deployment
+app.post("/api/properties/create-with-token", async (c) => {
+  try {
+    const data = await c.req.json();
+
+    if (!propertyManagementService) {
+      return c.json({ error: "Property management service not initialized" }, 500);
+    }
+
+    // Validate required fields
+    if (!data.property || !data.token || !data.ownerAddress || !data.network) {
+      return c.json({
+        success: false,
+        error: "Missing required fields: property, token, ownerAddress, network"
+      }, 400);
+    }
+
+    // Prepare property data with token deployment
+    const propertyData = {
+      contractAddress: '0x0000000000000000000000000000000000000000',
+      tokenSymbol: data.token.symbol,
+      name: data.property.name,
+      description: data.property.description,
+      location: data.property.location,
+      propertyType: data.property.propertyType || 'residential',
+      totalTokens: BigInt(data.token.totalSupply || 1000000),
+      availableTokens: BigInt(data.token.totalSupply || 1000000),
+      tokenPrice: data.property.tokenPrice?.toString() || '1.00',
+      totalValue: data.property.totalValue?.toString() || '1000000',
+      annualYield: data.property.annualYield?.toString() || '6.5',
+      riskLevel: data.property.riskLevel || 'medium',
+      features: data.property.features || [],
+      images: data.property.images || [],
+      fundingProgress: data.property.fundingProgress || 0,
+      minimumInvestment: data.property.minimumInvestment?.toString() || '100',
+      ownerAddress: data.ownerAddress,
+      createdBy: data.ownerAddress,
+      // Token deployment data
+      tokenData: {
+        name: data.token.name,
+        symbol: data.token.symbol,
+        decimals: data.token.decimals || 18,
+        totalSupply: data.token.totalSupply || 1000000,
+        instrumentType: data.token.instrumentType || 'equity',
+        baseCurrency: data.token.baseCurrency || 'USD',
+        countryRestrictions: data.token.countryRestrictions || [840],
+        maxBalance: data.token.maxBalance || 100000,
+        maxHolders: data.token.maxHolders || 500,
+        timeRestrictions: data.token.timeRestrictions || false,
+        claimTopics: data.token.claimTopics || [],
+        trustedIssuers: data.token.trustedIssuers || [],
+        complianceModules: data.token.complianceModules || [],
+        propertyId: '' // Will be filled after property creation
+      },
+      deployToken: true,
+      network: data.network as EVMNetwork
+    };
+
+    const result = await propertyManagementService.createPropertyWithToken(propertyData);
+
+    if (!result.success) {
+      return c.json(result, 400);
+    }
+
+    return c.json({
+      success: true,
+      data: result.data
+    });
+
+  } catch (error) {
+    console.error("Create property with token error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to create property with token",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
+// Deploy token for existing property
+app.post("/api/properties/:propertyId/deploy-token", async (c) => {
+  try {
+    const propertyId = c.req.param("propertyId");
+    const data = await c.req.json();
+    let evmNetwork = 'devnet';
+
+    if (!propertyManagementService) {
+      return c.json({ error: "Property management service not initialized" }, 500);
+    }
+    if (data.network) {
+      //return c.json({ error: "Network is required" }, 400);
+      evmNetwork = data.network;
+    }
+
+    // Validate required fields
+    if (!data.tokenData || !data.ownerAddress || !data.userId) {
+      return c.json({
+        success: false,
+        error: "Missing required fields: tokenData, ownerAddress, userId, network"
+      }, 400);
+    }
+
+    const tokenData = {
+      name: data.tokenData.name,
+      symbol: data.tokenData.symbol,
+      decimals: data.tokenData.decimals || 18,
+      totalSupply: data.tokenData.totalSupply || 1000000,
+      instrumentType: data.tokenData.instrumentType || 'equity',
+      baseCurrency: data.tokenData.baseCurrency || 'USD',
+      countryRestrictions: data.tokenData.countryRestrictions || [840],
+      maxBalance: 100000, //data.tokenData.maxBalance || 100000,
+      maxHolders: data.tokenData.maxHolders || 500,
+      timeRestrictions: data.tokenData.timeRestrictions || false,
+      claimTopics: data.tokenData.claimTopics || [],
+      trustedIssuers: data.tokenData.trustedIssuers || [],
+      complianceModules: data.tokenData.complianceModules || [],
+      propertyId
+    };
+
+    const result = await propertyManagementService.deployTokenForProperty(
+      propertyId,
+      data.userId,
+      tokenData,
+      data.ownerAddress as `0x${string}`,
+      evmNetwork as EVMNetwork
+    );
+
+    if (!result.success) {
+      return c.json(result, 400);
+    }
+
+    console.log({result})
+    return c.json({
+      success: true,
+      data: result.data
+    });
+
+  } catch (error) {
+    console.error("Deploy token for property error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to deploy token for property",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
+// Mint property tokens to investors
+app.post("/api/properties/:propertyId/mint-tokens", async (c) => {
+  try {
+    const propertyId = c.req.param("propertyId");
+    const data = await c.req.json();
+
+    if (!propertyManagementService) {
+      return c.json({ error: "Property management service not initialized" }, 500);
+    }
+
+    // Validate required fields
+    if (!data.userId || !data.recipients || !Array.isArray(data.recipients)) {
+      return c.json({
+        success: false,
+        error: "Missing required fields: userId, recipients (array)"
+      }, 400);
+    }
+
+    const result = await propertyManagementService.mintPropertyTokens(
+      propertyId,
+      data.userId,
+      data.recipients
+    );
+
+    if (!result.success) {
+      return c.json(result, 400);
+    }
+
+    return c.json({
+      success: true,
+      data: result.data
+    });
+
+  } catch (error) {
+    console.error("Mint property tokens error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to mint property tokens",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
+// Get property token information
+app.get("/api/properties/:propertyId/token-info", async (c) => {
+  try {
+    const propertyId = c.req.param("propertyId");
+
+    if (!propertiesService) {
+      return c.json({ error: "Properties service not initialized" }, 500);
+    }
+
+    // Get property data
+    const propertyResult = await propertiesService.getPropertyById(propertyId);
+    
+    if (!propertyResult) {
+      return c.json(propertyResult, 404);
+    }
+
+    // Get token data from property_tokens and tokens tables
+    const tokenQuery = `
+      SELECT 
+        t.contract_address,
+        t.name,
+        t.symbol,
+        t.decimals,
+        t.total_supply,
+        t.identity_registry_contract,
+        t.compliance_contract,
+        t.owner_address,
+        s.token_name,
+        s.token_symbol
+      FROM public.property_tokens pt
+      JOIN public.tokens t ON pt.token_contract = t.contract_address
+      LEFT JOIN public.suites s ON t.id = s.token_id
+      WHERE pt.property_id = $1
+    `;
+    
+    const pool = (propertiesService as any).pool; // Access pool from service
+    const tokenResult = await pool.query(tokenQuery, [propertyId]);
+
+    if (tokenResult.rows.length === 0) {
+      return c.json({
+        success: true,
+        data: {
+          property: propertyResult,
+          token: null,
+          message: "No token deployed for this property"
+        }
+      });
+    }
+
+    const tokenData = tokenResult.rows[0];
+
+    return c.json({
+      success: true,
+      data: {
+        property: propertyResult,
+        token: {
+          address: tokenData.contract_address,
+          name: tokenData.name,
+          symbol: tokenData.symbol,
+          decimals: tokenData.decimals,
+          totalSupply: tokenData.total_supply,
+          identityRegistry: tokenData.identity_registry_contract,
+          compliance: tokenData.compliance_contract,
+          ownerAddress: tokenData.owner_address
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error("Get property token info error:", error);
+    return c.json({
+      success: false,
+      error: "Failed to get property token information",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, 500);
+  }
+});
+
 // Token issuance endpoint - EVM ERC-3643 implementation
 app.post("/api/tokens/issue", async (c) => {
   try {
@@ -2585,15 +2857,27 @@ app.post("/api/tokens/issue", async (c) => {
     }
 
     // Use ERC-3643 factory to deploy TREX token suite
-    const deploymentResult = await propertyTokenFactoryService.deployPropertyTokenSuite({
-      salt: `salt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: tokenData.name,
-      symbol: tokenData.symbol,
-      initialSupply: BigInt(tokenData.initialSupply || 1000000),
-      claimTopics: [], // Empty for now - would be populated with actual claim topics
-      trustedIssuers: [], // Empty for now - would be populated with actual issuers
-      complianceModules: [], // Empty for now - would be populated with compliance modules
-    }, tokenData.deployerAddress as Address);
+    const deploymentResult = await propertyTokenFactoryService.deployPropertyToken({
+      propertyId: `temp_${Date.now()}`,
+      userId: tokenData.deployerAddress,
+      ownerAddress: tokenData.deployerAddress as `0x${string}`,
+      tokenData: {
+        name: tokenData.name,
+        symbol: tokenData.symbol,
+        decimals: 18,
+        totalSupply: tokenData.initialSupply || 1000000,
+        instrumentType: 'equity',
+        baseCurrency: 'USD',
+        countryRestrictions: ['840'], // US by default
+        maxBalance: 1000000,
+        maxHolders: 1000,
+        timeRestrictions: false,
+        claimTopics: [],
+        trustedIssuers: [],
+        complianceModules: [],
+        propertyId: `temp_${Date.now()}`
+      }
+    });
 
     if (!deploymentResult.success) {
       return c.json({
@@ -2607,7 +2891,7 @@ app.post("/api/tokens/issue", async (c) => {
       data: {
         tokenId: deploymentResult.data?.tokenAddress || `token_${Date.now()}`,
         contractAddress: deploymentResult.data?.tokenAddress,
-        transactionHash: deploymentResult.data?.txHash,
+        transactionHash: deploymentResult.data?.transactionHashes?.[0],
         network: contractsService?.getNetwork(),
         standard: 'ERC-3643'
       },
@@ -2912,22 +3196,31 @@ app.post("/api/properties/manage/:id/deploy", async (c) => {
       setTimeout(() => reject(new Error("Deployment timeout after 2 minutes")), 120000)
     );
 
-    const deployPromise = propertyTokenFactoryService.deployPropertyTokenSuite(
-      {
-        salt: propertyId, // Use propertyId as salt for deterministic deployment
+    const deployPromise = propertyTokenFactoryService.deployPropertyToken({
+      propertyId,
+      userId: ownerAddress,
+      ownerAddress: ownerAddress as `0x${string}`,
+      tokenData: {
         name: tokenDetails.name,
         symbol: tokenDetails.symbol,
-        initialSupply: BigInt(tokenDetails.initialSupply || 1000000), // Use proper initial supply, default to 1M
-        claimTopics: [], // Empty for now - requires principal addresses not numbers
-        trustedIssuers: [], // Empty for now
-        complianceModules: [], // Empty for now
-      },
-      ownerAddress
-    );
+        decimals: 18,
+        totalSupply: tokenDetails.initialSupply || 1000000,
+        instrumentType: 'equity',
+        baseCurrency: 'USD',
+        countryRestrictions: ['840'],
+        maxBalance: 1000000,
+        maxHolders: 1000,
+        timeRestrictions: false,
+        claimTopics: [],
+        trustedIssuers: [],
+        complianceModules: [],
+        propertyId
+      }
+    });
 
     interface DeployResult {
       success: boolean;
-      data?: DeployedTokenSuite;
+      data?: import('./services/trex-deployer').TREXDeploymentResult;
       error?: string;
     }
 

@@ -5,7 +5,7 @@
  */
 
 import type { Hono } from "hono";
-import type { PropertyTokenFactoryService } from "../services/property-token-factory";
+import type { PropertyTokenFactoryService } from "../services/property-token-factory-updated";
 import type { IdentityRegistryService } from "../services/identity-registry";
 import type { SettlementService } from "../services/settlement";
 import type { TrexContractsService } from "../services/trex-contracts";
@@ -133,18 +133,27 @@ export function registerContractIntegrationEndpoints(
       }
 
       // Deploy using ERC-3643 TREX factory pattern
-      const result = await services.propertyTokenFactory.deployPropertyTokenSuite(
-        {
-          salt: params.salt,
+      const result = await services.propertyTokenFactory.deployPropertyToken({
+        propertyId: params.salt,
+        userId: params.deployerAddress,
+        ownerAddress: params.deployerAddress as `0x${string}`,
+        tokenData: {
           name: params.name.trim(),
           symbol: params.symbol.trim(),
-          initialSupply: BigInt(params.initialSupply),
+          decimals: 18,
+          totalSupply: Number(params.initialSupply),
+          instrumentType: 'equity',
+          baseCurrency: 'USD',
+          countryRestrictions: ['840'],
+          maxBalance: 1000000,
+          maxHolders: 1000,
+          timeRestrictions: false,
           claimTopics: params.claimTopics,
           trustedIssuers: params.trustedIssuers,
           complianceModules: params.complianceModules || [],
-        },
-        params.deployerAddress as Address
-      );
+          propertyId: params.salt
+        }
+      });
 
       if (!result.success) {
         return c.json({ success: false, error: result.error }, 400);
@@ -176,7 +185,9 @@ export function registerContractIntegrationEndpoints(
         return c.json({ error: "Property token factory service not initialized" }, 500);
       }
 
-      const result = await services.propertyTokenFactory.getTokenAddress(salt);
+      // getTokenAddress method doesn't exist in updated service
+      // Using getDeploymentStatus instead
+      const result = await services.propertyTokenFactory.getDeploymentStatus(salt);
 
       if (!result.success) {
         return c.json({ success: false, error: result.error }, 400);
@@ -208,7 +219,8 @@ export function registerContractIntegrationEndpoints(
         return c.json({ error: "Property token factory service not initialized" }, 500);
       }
 
-      const deployment = await services.propertyTokenFactory.getPropertyDeployment(propertyId);
+      const result = await services.propertyTokenFactory.getDeploymentStatus(propertyId);
+      const deployment = result.success ? result.data : null;
 
       if (!deployment) {
         return c.json({ error: "Deployment not found" }, 404);
@@ -689,20 +701,20 @@ export function registerContractIntegrationEndpoints(
 
   /**
    * Deploy ERC-3643 token for a property
-   * POST /api/properties/deploy-token
+   * POST /api/properties/:id/deploy-token
    */
-  app.post("/api/properties/deploy-token", async (c) => {
+  app.post("/api/properties/:id/deploy-token", async (c) => {
     try {
-      const { tokenData, propertyId, userId } = await c.req.json();
+      const { tokenData, propertyId, userId, ownerAddress } = await c.req.json();
 
       // Validate required parameters
-      if (!tokenData || !propertyId || !userId) {
+      if (!tokenData || !propertyId || !userId || !ownerAddress) {
         return c.json({ success: false, error: "Missing required parameters" }, 400);
       }
 
       // Validate EVM addresses
-      if (!isValidEvmAddress(userId)) {
-        return c.json({ success: false, error: "Invalid user address format" }, 400);
+      if (!isValidEvmAddress(ownerAddress)) {
+        return c.json({ success: false, error: "Invalid owner address format" }, 400);
       }
 
       // Validate token data
@@ -738,18 +750,27 @@ export function registerContractIntegrationEndpoints(
       const salt = crypto.randomUUID();
 
       // Deploy token suite following DeployCompleteTREX pattern
-      const result = await services.propertyTokenFactory.deployPropertyTokenSuite(
-        {
-          salt,
+      const result = await services.propertyTokenFactory.deployPropertyToken({
+        propertyId: salt,
+        userId: ownerAddress,
+        ownerAddress: ownerAddress as `0x${string}`,
+        tokenData: {
           name: tokenData.name.trim(),
           symbol: tokenData.symbol.trim().toUpperCase(),
-          initialSupply: BigInt(tokenData.totalSupply),
-          claimTopics: tokenData.claimTopics || [1, 2, 7], // KYC, AML, Country
+          decimals: 18,
+          totalSupply: tokenData.totalSupply,
+          instrumentType: 'equity',
+          baseCurrency: 'USD',
+          countryRestrictions: ['840'],
+          maxBalance: 1000000,
+          maxHolders: 1000,
+          timeRestrictions: false,
+          claimTopics: tokenData.claimTopics || [1, 2, 7],
           trustedIssuers: tokenData.trustedIssuers || [],
           complianceModules: tokenData.complianceModules || ['CountryRestrictions', 'MaxBalance', 'MaxHolders'],
-        },
-        userId as Address
-      );
+          propertyId: salt
+        }
+      });
 
       if (!result.success) {
         return c.json({ success: false, error: result.error }, 400);
@@ -772,18 +793,19 @@ export function registerContractIntegrationEndpoints(
             deployed_at = EXCLUDED.deployed_at,
             deployed_tx_hash = EXCLUDED.deployed_tx_hash,
             updated_at = NOW()
-          RETURNING *
+          RETURNING id
         `;
-        await pool.query(tokenQuery, [
+        const tokenResult = await pool.query(tokenQuery, [
           deploymentData.tokenAddress,
           tokenData.name.trim(),
           tokenData.symbol.trim().toUpperCase(),
           tokenData.decimals || 18,
           tokenData.totalSupply.toString(),
-          userId,
+          ownerAddress,
           new Date(),
-          deploymentData.txHash,
+          deploymentData.transactionHashes[0],
         ]);
+        const tokenId = tokenResult.rows[0].id;
 
         // Insert suite record
         const suiteQuery = `
@@ -798,16 +820,16 @@ export function registerContractIntegrationEndpoints(
         `;
         await pool.query(suiteQuery, [
           salt,
-          null, // token_id will be set after insertion
-          deploymentData.identityRegistryAddress, // Using available addresses
-          deploymentData.identityRegistryAddress, // Using available addresses
+          tokenId, // Use the actual token id
+          deploymentData.identityFactoryAddress, // Using available addresses
+          deploymentData.authorityAddress, // Using available addresses
           deploymentData.identityRegistryAddress,
-          deploymentData.identityRegistryStorageAddress,
+          deploymentData.identityStorageAddress,
           deploymentData.claimTopicsRegistryAddress,
           deploymentData.trustedIssuersRegistryAddress,
           deploymentData.complianceAddress,
-          userId,
-          deploymentData.txHash,
+          ownerAddress,
+          deploymentData.transactionHashes[0],
           tokenData.name.trim(),
           tokenData.symbol.trim().toUpperCase(),
           tokenData.totalSupply.toString(),
@@ -825,7 +847,7 @@ export function registerContractIntegrationEndpoints(
           propertyId,
           deploymentData.tokenAddress,
           'primary',
-          userId,
+          ownerAddress,
         ]);
 
         // Log deployment event
@@ -837,7 +859,7 @@ export function registerContractIntegrationEndpoints(
         await pool.query(auditQuery, [
           'token_deployment',
           deploymentData.tokenAddress,
-          userId,
+          ownerAddress,
           {
             propertyId,
             tokenName: tokenData.name,
@@ -857,7 +879,7 @@ export function registerContractIntegrationEndpoints(
         success: true,
         data: {
           tokenAddress: deploymentData?.tokenAddress,
-          txHash: deploymentData?.txHash,
+          txHash: deploymentData?.transactionHashes[0],
           suiteAddresses: deploymentData,
           salt,
         }
@@ -920,6 +942,101 @@ export function registerContractIntegrationEndpoints(
         {
           success: false,
           error: "Failed to check transfer eligibility",
+          details: error instanceof Error ? error.message : "Unknown error",
+        },
+        500
+      );
+    }
+  });
+
+  // ============================================================
+  // Token Listing Endpoints
+  // ============================================================
+
+  /**
+   * Get deployed property tokens for a user (issuer)
+   * GET /api/tokens/user/:userId
+   */
+  app.get("/api/tokens/user/:userId", async (c) => {
+    try {
+      const userId = c.req.param("userId");
+
+      // Validate EVM address format for userId
+      if (!isValidEvmAddress(userId)) {
+        return c.json({ success: false, error: "Invalid Ethereum address format for userId" }, 400);
+      }
+
+      // Get database pool
+      const { getPool } = await import('../lib/database');
+      const pool = getPool();
+
+      // Query property tokens with joins
+      const query = `
+        SELECT
+          pt.property_id,
+          pt.token_address,
+          pt.identity_registry,
+          pt.compliance,
+          pt.status,
+          pt.tx_hash,
+          pt.deployed_at,
+          pt.deployer_address,
+          pt.network,
+          pt.error,
+          pt.created_at,
+          t.id as token_id,
+          t.contract_address,
+          t.name as token_name,
+          t.symbol as token_symbol,
+          t.decimals,
+          t.total_supply,
+          t.circulating_supply,
+          t.identity_registry_contract,
+          t.compliance_contract,
+          t.paused,
+          t.owner_address,
+          t.deployed_at as token_deployed_at,
+          t.deployed_tx_hash,
+          t.created_at as token_created_at,
+          t.updated_at as token_updated_at,
+          s.salt,
+          s.identity_factory_contract,
+          s.authority_contract,
+          s.identity_registry_contract as suite_identity_registry,
+          s.identity_storage_contract,
+          s.claim_topics_registry_contract,
+          s.trusted_issuers_registry_contract,
+          s.compliance_contract as suite_compliance,
+          s.time_restriction_module_contract,
+          s.country_restriction_module_contract,
+          s.max_balance_module_contract,
+          s.max_holders_module_contract,
+          s.deployed_at as suite_deployed_at,
+          s.deployed_by,
+          s.deployed_tx_hash as suite_deployed_tx_hash,
+          s.token_name as suite_token_name,
+          s.token_symbol as suite_token_symbol,
+          s.initial_supply
+        FROM public.property_tokens pt
+        JOIN public.tokens t ON pt.token_address = t.contract_address
+        LEFT JOIN public.suites s ON t.id = s.token_id
+        WHERE pt.deployer_address = $1
+        ORDER BY pt.deployed_at DESC
+      `;
+
+      const result = await pool.query(query, [userId]);
+
+      return c.json({
+        success: true,
+        data: result.rows,
+        count: result.rows.length
+      });
+    } catch (error) {
+      console.error("Get user tokens error:", error);
+      return c.json(
+        {
+          success: false,
+          error: "Failed to get user tokens",
           details: error instanceof Error ? error.message : "Unknown error",
         },
         500

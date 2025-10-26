@@ -115,6 +115,7 @@ export class PropertyTokenFactoryService {
         name: request.tokenData.name,
         symbol: request.tokenData.symbol,
         decimals: request.tokenData.decimals || 18,
+        totalSupply: request.tokenData.totalSupply,
         owner: request.ownerAddress,
         countryRestrictions,
         maxBalance: parseEther(request.tokenData.maxBalance.toString()),
@@ -133,17 +134,16 @@ export class PropertyTokenFactoryService {
       if (!deploymentResult.success) {
         console.error(`[PropertyTokenFactory:${this.network}] Deployment failed:`, deploymentResult.error);
         
-        // Store failed deployment (commented out - table doesn't exist yet)
-        // TODO: Uncomment after property_deployments table is created
-        // await this.storePropertyDeployment({
-        //   propertyId: request.propertyId,
-        //   tokenAddress: '0x0000000000000000000000000000000000000000' as Address,
-        //   identityRegistry: '0x0000000000000000000000000000000000000000' as Address,
-        //   compliance: '0x0000000000000000000000000000000000000000' as Address,
-        //   status: 'failed',
-        //   network: this.network,
-        //   error: deploymentResult.error,
-        // });
+        // Store failed deployment
+        await this.storePropertyDeployment({
+          propertyId: request.propertyId,
+          tokenAddress: '0x0000000000000000000000000000000000000000' as Address,
+          identityRegistry: '0x0000000000000000000000000000000000000000' as Address,
+          compliance: '0x0000000000000000000000000000000000000000' as Address,
+          status: 'failed',
+          network: this.network,
+          error: deploymentResult.error,
+        });
 
         return deploymentResult;
       }
@@ -152,27 +152,21 @@ export class PropertyTokenFactoryService {
       console.log(`  Token: ${deploymentResult.data!.tokenAddress}`);
       console.log(`  Gas Used: ${deploymentResult.data!.totalGasUsed}`);
 
-      // Store successful deployment (commented out - table doesn't exist yet)
-      // TODO: Uncomment after property_deployments table is created
-      // await this.storePropertyDeployment({
-      //   propertyId: request.propertyId,
-      //   tokenAddress: deploymentResult.data!.tokenAddress,
-      //   identityRegistry: deploymentResult.data!.identityRegistryAddress,
-      //   compliance: deploymentResult.data!.complianceAddress,
-      //   status: 'deployed',
-      //   txHash: deploymentResult.data!.transactionHashes[0],
-      //   deployedAt: deploymentResult.data!.deploymentTimestamp,
-      //   deployerAddress: request.ownerAddress,
-      //   network: this.network,
-      // });
-
       // Store deployment in database using deployer service
-      try {
-        await this.deployerService.storeDeploymentData(request.propertyId, deploymentResult.data!, tokenParams);
-      } catch (dbError) {
-        // Log but don't fail on database errors
-        console.warn(`[PropertyTokenFactory:${this.network}] Database storage failed (non-critical):`, dbError instanceof Error ? dbError.message : 'Unknown error');
-      }
+      await this.deployerService.storeDeploymentData(request.propertyId, deploymentResult.data!, tokenParams);
+
+      /* Store successful deployment
+      await this.storePropertyDeployment({
+        propertyId: request.propertyId,
+        tokenAddress: deploymentResult.data!.tokenAddress,
+        identityRegistry: deploymentResult.data!.identityRegistryAddress,
+        compliance: deploymentResult.data!.complianceAddress,
+        status: 'deployed',
+        txHash: deploymentResult.data!.transactionHashes[0],
+        deployedAt: deploymentResult.data!.deploymentTimestamp,
+        deployerAddress: request.ownerAddress,
+        network: this.network,
+      });*/
 
       return deploymentResult;
     } catch (error) {
@@ -197,10 +191,27 @@ export class PropertyTokenFactoryService {
 
       // Insert or update property_tokens tracking table
       await client.query(
-        `INSERT INTO public.property_tokens
+        `INSERT INTO public.property_tokens 
           (property_id, token_address, identity_registry, compliance, 
            status, tx_hash, deployed_at, deployer_address, network, error)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING *;
+        `,
+        [
+          deployment.propertyId,
+          deployment.tokenAddress,
+          deployment.identityRegistry,
+          deployment.compliance,
+          deployment.status,
+          deployment.txHash || null,
+          deployment.deployedAt || null,
+          deployment.deployerAddress || null,
+          deployment.network,
+          deployment.error || 'false'
+        ]
+      );
+
+/*
         ON CONFLICT (property_id) 
         DO UPDATE SET
           token_address = EXCLUDED.token_address,
@@ -212,20 +223,8 @@ export class PropertyTokenFactoryService {
           deployer_address = EXCLUDED.deployer_address,
           network = EXCLUDED.network,
           error = EXCLUDED.error,
-          updated_at = NOW()`,
-        [
-          deployment.propertyId,
-          deployment.tokenAddress,
-          deployment.identityRegistry,
-          deployment.compliance,
-          deployment.status,
-          deployment.txHash || null,
-          deployment.deployedAt || null,
-          deployment.deployerAddress || null,
-          deployment.network,
-          deployment.error || null
-        ]
-      );
+          created_at = NOW()
+ */
 
       await client.query('COMMIT');
     } catch (error) {

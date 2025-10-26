@@ -848,11 +848,17 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('public.property_tokens').ifNotExists()
     .addColumn('property_id', 'uuid', (col) => col.references('properties.id'))
-    .addColumn('token_contract', 'text', (col) => col.references('public.tokens.contract_address'))
-    .addColumn('token_role', 'varchar(50)', (col) => col.notNull())
+    .addColumn('token_address', 'text', (col) => col.references('public.tokens.contract_address'))
+    .addColumn('identity_registry', 'text', (col) => col.notNull())
+    .addColumn('compliance', 'text', (col) => col.notNull())
+    .addColumn('status', 'text', (col) => col.notNull())
+    .addColumn('tx_hash', 'text', (col) => col.notNull())
+    .addColumn('deployed_at', 'timestamptz', (col) => col.defaultTo(sql`NOW()`).notNull())
+    .addColumn('deployer_address', 'text', (col) => col.notNull())
+    .addColumn('network', 'text', (col) => col.notNull())
+    .addColumn('error', 'text', (col) => col.notNull())
     .addColumn('created_at', 'timestamptz', (col) => col.defaultTo(sql`NOW()`).notNull())
-    .addColumn('created_by', 'text')
-    .addPrimaryKeyConstraint('property_tokens_pkey', ['property_id', 'token_contract'])
+    .addPrimaryKeyConstraint('property_tokens_pkey', ['property_id', 'token_address'])
     .execute()
 
   // Comprehensive audit log
@@ -1230,7 +1236,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   await sql`INSERT INTO public.claim_topics (topic_id, name, description, required) VALUES (1, 'KYC', 'Know Your Customer verification', TRUE), (2, 'AML', 'Anti-Money Laundering check', TRUE), (3, 'Accreditation', 'Investor accreditation status', TRUE), (7, 'Country', 'Country of residence', TRUE), (101, 'Age', 'Age verification (18+)', TRUE), (102, 'Tax', 'Tax residency status', FALSE), (103, 'Professional', 'Professional investor status', FALSE)`.execute(db)
 
-  await sql`INSERT INTO public.trusted_issuers (issuer_address, name, description, claim_topics) VALUES ('ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.kyc-provider', 'Primary KYC Provider', 'Main KYC verification service', ARRAY[1, 2, 7]), ('ST2PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.aml-provider', 'AML Compliance Provider', 'Anti-money laundering verification', ARRAY[2]), ('ST3PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.accreditation-provider', 'Accreditation Authority', 'Investor accreditation verification', ARRAY[3])`.execute(db)
+  await sql`INSERT INTO public.trusted_issuers (issuer_address, name, description, claim_topics) VALUES ('kyc-provider', 'Primary KYC Provider', 'Main KYC verification service', ARRAY[1, 2, 7]), ('aml-provider', 'AML Compliance Provider', 'Anti-money laundering verification', ARRAY[2]), ('accreditation-provider', 'Accreditation Authority', 'Investor accreditation verification', ARRAY[3])`.execute(db)
 
   await sql`INSERT INTO public.model_metadata (model_name, version, model_type, is_active, deployed_at) VALUES ('market_growth_ensemble', 'v1.0.0', 'growth', true, NOW()), ('risk_assessment_model', 'v1.0.0', 'risk', true, NOW()), ('portfolio_health_scorer', 'v1.0.0', 'portfolio', true, NOW()), ('opportunity_ranker', 'v1.0.0', 'opportunity', true, NOW()) ON CONFLICT (model_name, version) DO NOTHING`.execute(db)
 
