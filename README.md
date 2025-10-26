@@ -16,7 +16,9 @@ FarSquare implements a **holistic ecosystem** for Real World Asset (RWA) tokeniz
 - **Regulatory Compliance**: KYC/AML integration with auditable on-chain attestations
 - **Fractional Ownership**: Property tokenization with automated income distribution
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/naC2kdwlc4Y" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+## Video Demo
+
+- https://www.youtube.com/embed/naC2kdwlc4Y
 
 ## Core Features
 
